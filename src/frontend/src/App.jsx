@@ -84,40 +84,13 @@ function App() {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      {/* Temporary Logout button since it was in the header before, 
-          maybe user wants it in Sidebar now? Keeping it for safety but moving it or just relying on settings.
-          Actually, I'll keep the logout logic somewhere accessible. 
-          For now, I'll leave the logout button visible or maybe put it in the sidebar later.
-          The requirement was specific about the sidebar. 
-          The original code had a Logout button in the header. 
-          I replaced the header with 'top-bar' and the menu button. 
-          I should probably include the logout button or move it to the sidebar. 
-          The user only asked for the sidebar menu. 
-          I'll add the logout button NEXT to the menu button for now so functionality isn't lost.
-      */}
-      <button
-        onClick={() => {
+      <Dashboard
+        onLastUpdated={setLastUpdated}
+        onLogout={() => {
           localStorage.removeItem('token');
           setToken(null);
         }}
-        style={{
-          position: 'absolute',
-          top: '80px',
-          right: '20px',
-          background: 'rgba(255,255,255,0.1)',
-          border: 'none',
-          padding: '8px 16px',
-          color: 'white',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          zIndex: 50
-        }}
-      >
-        Logout
-      </button>
-
-
-      <Dashboard onLastUpdated={setLastUpdated} />
+      />
       <ChatWidget />
     </div>
   );
