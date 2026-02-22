@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MoreVertical, LogOut } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
@@ -12,6 +12,7 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -65,15 +66,20 @@ function App() {
 
   return (
     <div>
-      <div className="top-bar" style={{ justifyContent: 'flex-start', gap: '20px' }}>
+      <div className="top-bar">
         <button
           onClick={() => setIsSidebarOpen(true)}
           className="menu-toggle"
           aria-label="Menu"
         >
-          <MoreVertical size={24} />
+          <Menu size={28} strokeWidth={2.5} />
         </button>
         <h1 style={{ margin: 0 }}>Inventory 360</h1>
+        {lastUpdated && (
+          <span className="last-updated" style={{ marginLeft: 'auto' }}>
+            Última actualización: {lastUpdated.toLocaleTimeString('es-ES')}
+          </span>
+        )}
       </div>
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -111,7 +117,7 @@ function App() {
       </button>
 
 
-      <Dashboard />
+      <Dashboard onLastUpdated={setLastUpdated} />
       <ChatWidget />
     </div>
   );

@@ -1,20 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { FaComments, FaPaperPlane, FaRobot, FaUser } from 'react-icons/fa';
 import api from '../config/api';
 
 const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
-        { sender: 'ia', text: 'Hola, soy tu asistente de inventario. ¿En qué puedo ayudarte hoy?' }
+        {
+            sender: 'ia',
+            text: 'Hola, soy tu asistente de inventario. ¿En qué puedo ayudarte hoy?',
+        },
     ]);
     const [inputText, setInputText] = useState('');
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef(null);
+    const inputRef = useRef(null);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    useEffect(scrollToBottom, [messages]);
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    // Auto-focus input when chat opens
+    useEffect(() => {
+        if (isOpen) {
+            setTimeout(() => inputRef.current?.focus(), 100);
+        }
+    }, [isOpen]);
 
     const toggleChat = () => setIsOpen(!isOpen);
 
@@ -23,7 +37,7 @@ const ChatWidget = () => {
         if (!inputText.trim()) return;
 
         const userMsg = { sender: 'user', text: inputText };
-        setMessages(prev => [...prev, userMsg]);
+        setMessages((prev) => [...prev, userMsg]);
         setInputText('');
         setLoading(true);
 
@@ -34,19 +48,24 @@ const ChatWidget = () => {
               setMessages(prev => [...prev, { sender: 'ia', text: `Entendido: "${inputText}". (Simulación)` }]);
               setLoading(false);
             }, 1000);
-            return; 
+            return;
             */
 
             const res = await api.post('/chat', { message: userMsg.text });
 
-            setMessages(prev => [...prev, {
-                sender: 'ia',
-                text: res.data.message || "Lo siento, hubo un error."
-            }]);
-
+            setMessages((prev) => [
+                ...prev,
+                {
+                    sender: 'ia',
+                    text: res.data.message || 'Lo siento, hubo un error.',
+                },
+            ]);
         } catch (err) {
             console.error(err);
-            setMessages(prev => [...prev, { sender: 'ia', text: "Error de conexión con el servidor." }]);
+            setMessages((prev) => [
+                ...prev,
+                { sender: 'ia', text: 'Error de conexión con el servidor.' },
+            ]);
         } finally {
             setLoading(false);
         }
@@ -54,38 +73,83 @@ const ChatWidget = () => {
 
     if (!isOpen) {
         return (
-            <div className="chat-widget minimized" onClick={toggleChat}>
-                <span style={{ fontSize: '24px' }}>💬</span>
-            </div>
+            <button className="chat-toggle-button" onClick={toggleChat} aria-label="Abrir chat">
+                <FaComments />
+            </button>
         );
     }
 
     return (
-        <div className="chat-widget glass-panel">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <strong>Asistente IA</strong>
-                <button onClick={toggleChat} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>✖</button>
+        <div className="chat-widget">
+            {/* Header */}
+            <div className="chat-header">
+                <div className="chat-header-info">
+                    <FaRobot className="chat-header-icon" />
+                    <span>Asistente IA</span>
+                </div>
+                <button className="chat-close-button" onClick={toggleChat} aria-label="Cerrar chat">
+                    ✕
+                </button>
             </div>
 
+            {/* Messages */}
             <div className="chat-messages">
                 {messages.map((msg, idx) => (
-                    <div key={idx} className={`message ${msg.sender}`}>
-                        {msg.text}
+                    <div key={idx} className={`chat-message ${msg.sender === 'user' ? 'user' : 'ia'}`}>
+                        {msg.sender === 'ia' && (
+                            <div className="message-avatar ia">
+                                <FaRobot />
+                            </div>
+                        )}
+                        <div className="message-bubble">
+                            <div className="message-text">{msg.text}</div>
+                            <div className="message-time">
+                                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                        </div>
+                        {msg.sender === 'user' && (
+                            <div className="message-avatar user">
+                                <FaUser />
+                            </div>
+                        )}
                     </div>
                 ))}
-                {loading && <div className="message ai">Thinking...</div>}
+
+                {loading && (
+                    <div className="chat-message ia">
+                        <div className="message-avatar ia">
+                            <FaRobot />
+                        </div>
+                        <div className="message-bubble">
+                            <div className="typing-indicator">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div ref={messagesEndRef} />
             </div>
 
-            <form className="chat-input-area" onSubmit={handleSend}>
+            {/* Input */}
+            <form className="chat-input-form" onSubmit={handleSend}>
                 <input
+                    ref={inputRef}
                     type="text"
                     className="chat-input"
-                    placeholder="Escribe una instrucción..."
+                    placeholder="Escribe un mensaje..."
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
+                    disabled={loading}
                 />
-                <button type="submit" className="btn-primary">➤</button>
+                <button
+                    type="submit"
+                    className="chat-send-button"
+                    disabled={!inputText.trim() || loading}
+                >
+                    <FaPaperPlane />
+                </button>
             </form>
         </div>
     );
