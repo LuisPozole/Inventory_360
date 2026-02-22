@@ -14,13 +14,14 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   return (
     <>
-      <div 
-        className={`sidebar-overlay ${isOpen ? 'open' : ''}`} 
+      <div
+        className={`sidebar-overlay ${isOpen ? 'open' : ''}`}
         onClick={onClose}
       />
       <div className={`sidebar ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-           {/* Placeholder for logo or title if needed */}
+          <img src="/logo.png" alt="INV 360" className="sidebar-logo" />
+          <span className="sidebar-title">INV 360</span>
         </div>
         <nav className="sidebar-nav">
           {menuItems.map((item) => (
