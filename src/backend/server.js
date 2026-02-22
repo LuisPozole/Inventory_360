@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -28,11 +29,15 @@ const connectDB = async () => {
 
 connectDB();
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/chat', require('./routes/chatRoutes'));
+app.use('/api/profile', require('./routes/profileRoutes'));
 
 // Default Route
 app.get('/', (req, res) => {

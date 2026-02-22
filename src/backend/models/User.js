@@ -17,9 +17,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    phone: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    profileImage: {
+        type: String,
+        default: ''
+    },
     role: {
         type: String,
-        enum: ['Admin', 'Vendedor'], // Adjusted to match user request 'Vendedor'
+        enum: ['Admin', 'Vendedor'],
         default: 'Vendedor'
     },
     createdAt: {

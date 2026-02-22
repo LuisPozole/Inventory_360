@@ -4,12 +4,14 @@ import Dashboard from './components/Dashboard';
 import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
+import Profile from './components/Profile';
 import './App.css';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [currentView, setCurrentView] = useState('dashboard');
 
   if (!token) {
     return <Login onLoginSuccess={setToken} />;
@@ -36,13 +38,21 @@ function App() {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <Dashboard
-        onLastUpdated={setLastUpdated}
-        onLogout={() => {
-          localStorage.removeItem('token');
-          setToken(null);
-        }}
-      />
+      {currentView === 'dashboard' && (
+        <Dashboard
+          onLastUpdated={setLastUpdated}
+          onLogout={() => {
+            localStorage.removeItem('token');
+            setToken(null);
+          }}
+          onNavigateToProfile={() => setCurrentView('profile')}
+        />
+      )}
+
+      {currentView === 'profile' && (
+        <Profile onBack={() => setCurrentView('dashboard')} />
+      )}
+
       <ChatWidget />
     </div>
   );

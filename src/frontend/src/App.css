@@ -449,6 +449,21 @@
   color: var(--primary, #6366f1);
 }
 
+.admin-avatar-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.menu-avatar-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 /* --- Welcome Section --- */
 .dashboard-welcome {
   margin-bottom: 28px;

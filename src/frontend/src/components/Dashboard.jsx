@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import api from '../config/api';
 
-const Dashboard = ({ onLastUpdated, onLogout }) => {
+const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
     const [stats, setStats] = useState(null);
     const [alerts, setAlerts] = useState({ count: 0, alerts: [] });
     const [demandData, setDemandData] = useState([]);
@@ -20,7 +20,12 @@ const Dashboard = ({ onLastUpdated, onLogout }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [dismissedAlerts, setDismissedAlerts] = useState([]);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [userData, setUserData] = useState(null);
     const userMenuRef = useRef(null);
+
+    const API_BASE = import.meta.env.VITE_API_URL
+        ? new URL(import.meta.env.VITE_API_URL).origin
+        : 'http://localhost:3000';
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -31,6 +36,19 @@ const Dashboard = ({ onLastUpdated, onLogout }) => {
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Fetch user data
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await api.get('/auth/me');
+                setUserData(res.data);
+            } catch (err) {
+                console.error('Error fetching user:', err);
+            }
+        };
+        fetchUser();
     }, []);
 
     useEffect(() => {
@@ -60,7 +78,7 @@ const Dashboard = ({ onLastUpdated, onLogout }) => {
         };
 
         fetchAll();
-        const interval = setInterval(fetchAll, 30000); // refresh every 30s
+        const interval = setInterval(fetchAll, 30000);
         return () => clearInterval(interval);
     }, []);
 
@@ -167,10 +185,18 @@ const Dashboard = ({ onLastUpdated, onLogout }) => {
                             onClick={() => setShowUserMenu(prev => !prev)}
                         >
                             <div className="admin-text">
-                                <span className="admin-name">Admin Usuario</span>
-                                <span className="admin-email">admin@inv360.com</span>
+                                <span className="admin-name">{userData?.name || 'Usuario'}</span>
+                                <span className="admin-email">{userData?.email || ''}</span>
                             </div>
-                            <FaUserCircle className="admin-avatar" />
+                            {userData?.profileImage ? (
+                                <img
+                                    src={`${API_BASE}${userData.profileImage}`}
+                                    alt="Avatar"
+                                    className="admin-avatar-img"
+                                />
+                            ) : (
+                                <FaUserCircle className="admin-avatar" />
+                            )}
                             <ChevronDown
                                 size={14}
                                 className={`admin-chevron ${showUserMenu ? 'open' : ''}`}
@@ -179,18 +205,26 @@ const Dashboard = ({ onLastUpdated, onLogout }) => {
                         {showUserMenu && (
                             <div className="admin-menu">
                                 <div className="admin-menu-header">
-                                    <FaUserCircle className="menu-avatar" />
+                                    {userData?.profileImage ? (
+                                        <img
+                                            src={`${API_BASE}${userData.profileImage}`}
+                                            alt="Avatar"
+                                            className="menu-avatar-img"
+                                        />
+                                    ) : (
+                                        <FaUserCircle className="menu-avatar" />
+                                    )}
                                     <div>
-                                        <span className="menu-name">Admin Usuario</span>
-                                        <span className="menu-email">admin@inv360.com</span>
+                                        <span className="menu-name">{userData?.name || 'Usuario'}</span>
+                                        <span className="menu-email">{userData?.email || ''}</span>
                                     </div>
                                 </div>
                                 <div className="admin-menu-divider"></div>
-                                <button className="admin-menu-item" onClick={() => setShowUserMenu(false)}>
+                                <button className="admin-menu-item" onClick={() => { setShowUserMenu(false); onNavigateToProfile && onNavigateToProfile(); }}>
                                     <User size={16} />
                                     Mi Perfil
                                 </button>
-                                <button className="admin-menu-item" onClick={() => setShowUserMenu(false)}>
+                                <button className="admin-menu-item" onClick={() => { setShowUserMenu(false); onNavigateToProfile && onNavigateToProfile(); }}>
                                     <Settings size={16} />
                                     Configuración de Cuenta
                                 </button>
