@@ -12,9 +12,19 @@ const adminCheck = (req, res, next) => {
     next();
 };
 
+// @route   GET api/products/categories
+// @desc    Get all categories (for dropdowns)
+// @access  Private
+router.get('/categories', authMonitor, productController.getCategories);
+
+// @route   POST api/products/categories
+// @desc    Create a category
+// @access  Private (Admin only)
+router.post('/categories', [authMonitor, adminCheck], productController.createCategory);
+
 // @route   GET api/products
-// @desc    Get all products
-// @access  Public (or Private? "Vendedor solo consulta stock" -> Private)
+// @desc    Get all products (supports ?search=&category=&status= filters)
+// @access  Private
 router.get('/', authMonitor, productController.getProducts);
 
 // @route   POST api/products

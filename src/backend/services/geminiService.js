@@ -1,149 +1,299 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Product = require('../models/Product');
-const Category = require('../models/Category'); // <-- ASEGÚRATE DE QUE ESTA RUTA SEA CORRECTA
+const Category = require('../models/Category');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Función auxiliar para generar SKU automático
 function generateSKU(productName) {
-    const prefix = productName.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'PRD');
-    const randomNumbers = Math.floor(1000 + Math.random() * 9000); // 4 dígitos aleatorios
-    return `${prefix}-${randomNumbers}`;
+    const words = productName.trim().split(/\s+/).filter(Boolean).slice(0, 3);
+    const prefix = words.map(w => w.substring(0, 3).toUpperCase()).join('-');
+    const suffix = String(Math.floor(100 + Math.random() * 900));
+    return `${prefix}-${suffix}`;
+}
+
+// Format a product for display in chat
+function formatProduct(p) {
+    const status = p.stock <= (p.criticalThreshold || 10)
+        ? '🔴 Crítico'
+        : p.stock <= (p.criticalThreshold || 10) * 2
+            ? '🟡 Bajo'
+            : '🟢 Normal';
+    const catName = p.category?.name || 'Sin categoría';
+    return `• **${p.name}** (SKU: ${p.sku}) — $${p.price} | Stock: ${p.stock} uds. ${status} | Cat: ${catName}`;
 }
 
 async function processCommand(commandText) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        const prompt = `
-      Eres un asistente de Inteligencia Artificial para un sistema de gestión de inventario.
-      Tu tarea es interpretar el comando en lenguaje natural del usuario y extraer la intención y los parámetros.
-      DEBES responder y formular tus mensajes SIEMPRE en Español.
-      
-      Las acciones disponibles son:
-      1. ADD_PRODUCT: Añadir o crear un nuevo producto en el inventario.
-      2. UPDATE_STOCK: Actualizar la cantidad de stock de un producto existente.
-      3. CHECK_STOCK: Consultar el nivel de stock actual de un producto.
-      4. UNKNOWN: Si el comando no se entiende o no tiene relación.
+        // ── Step 1: Classify intent ──
+        const classifyPrompt = `
+Eres un asistente de IA para un sistema de gestión de inventario llamado "Inventory 360".
+Tu tarea es interpretar el mensaje del usuario y extraer la intención y los parámetros.
+DEBES responder SIEMPRE en Español.
 
-      Devuelve ÚNICAMENTE un objeto JSON VÁLIDO con esta estructura exacta:
-      {
-        "action": "ADD_PRODUCT" | "UPDATE_STOCK" | "CHECK_STOCK" | "UNKNOWN",
-        "productName": "string (nombre del producto extraído) o null",
-        "quantity": number (cantidad) o null,
-        "price": number (precio del producto si se menciona) o null,
-        "category": "string (nombre de la categoría si se menciona) o null",
-        "message": "Mensaje amigable confirmando o explicando qué falta (en Español)"
-      }
+Las acciones disponibles son:
+1. ADD_PRODUCT: Añadir o crear un nuevo producto. Necesitas: nombre, precio, categoría. Opcionalmente cantidad.
+2. UPDATE_PRODUCT: Modificar datos de un producto existente (precio, nombre, categoría, umbral crítico).
+3. DELETE_PRODUCT: Eliminar un producto del inventario.
+4. UPDATE_STOCK: Actualizar la cantidad de stock (sumar, restar o establecer un valor).
+5. CHECK_STOCK: Consultar el stock de un producto específico.
+6. LIST_PRODUCTS: Listar productos, opcionalmente filtrados por categoría o estado.
+7. GENERAL_CHAT: Cualquier otra pregunta o conversación que NO sea una operación de inventario (saludos, preguntas generales, dudas, etc.).
 
-      Comando del Usuario: "${commandText}"
-    `;
+Devuelve ÚNICAMENTE un objeto JSON VÁLIDO con esta estructura:
+{
+  "action": "ADD_PRODUCT" | "UPDATE_PRODUCT" | "DELETE_PRODUCT" | "UPDATE_STOCK" | "CHECK_STOCK" | "LIST_PRODUCTS" | "GENERAL_CHAT",
+  "productName": "nombre del producto o null",
+  "quantity": number o null,
+  "price": number o null,
+  "category": "nombre de categoría o null",
+  "newName": "nuevo nombre si se está renombrando, o null",
+  "newPrice": number o null (para UPDATE_PRODUCT),
+  "filterCategory": "categoría para filtrar al listar, o null",
+  "message": "Mensaje amigable confirmando la acción o explicando qué falta (en Español)"
+}
 
-        const result = await model.generateContent(prompt);
+Mensaje del Usuario: "${commandText}"
+`;
+
+        const result = await model.generateContent(classifyPrompt);
         const response = await result.response;
         const text = response.text();
-
         const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        let parsedResult;
+        let parsed;
         try {
-            parsedResult = JSON.parse(cleanText);
+            parsed = JSON.parse(cleanText);
         } catch (e) {
             console.error("Failed to parse Gemini response:", text);
             return { action: 'UNKNOWN', message: "Lo siento, no pude entender tu solicitud. ¿Podrías reformularla?" };
         }
 
-        // --- LÓGICA: AÑADIR PRODUCTO ---
-        if (parsedResult.action === 'ADD_PRODUCT') {
-            // Ya no pedimos el SKU a Gemini
-            if (!parsedResult.productName || !parsedResult.price || !parsedResult.category) {
+        // ── Step 2: Execute action ──
+
+        // ═══ GENERAL CHAT ═══
+        if (parsed.action === 'GENERAL_CHAT') {
+            const chatPrompt = `
+Eres un asistente virtual amigable llamado "INV 360 Assistant" para una empresa.
+Responde la siguiente pregunta o mensaje de manera útil, amigable y concisa. Siempre en Español.
+Si la pregunta es un saludo, responde de forma cálida y ofrece tu ayuda.
+Puedes ayudar con preguntas generales, definiciones, cálculos, y cualquier otro tema.
+
+Mensaje: "${commandText}"
+`;
+            const chatResult = await model.generateContent(chatPrompt);
+            const chatResponse = await chatResult.response;
+            return {
+                action: 'GENERAL_CHAT',
+                message: chatResponse.text()
+            };
+        }
+
+        // ═══ ADD PRODUCT ═══
+        if (parsed.action === 'ADD_PRODUCT') {
+            if (!parsed.productName || !parsed.price || !parsed.category) {
                 return {
-                    message: "Para añadir un producto nuevo a la base de datos necesito más detalles. Por favor indícame: Nombre, Cantidad, Precio y Categoría (Ej: 'Añade 10 refrescos, precio 15, categoría bebidas')."
+                    action: 'ADD_PRODUCT',
+                    message: "Para añadir un producto necesito: **Nombre**, **Precio** y **Categoría**.\nEjemplo: 'Añade 10 refrescos, precio $15, categoría bebidas'."
                 };
             }
 
-            const existingProduct = await Product.findOne({
-                name: { $regex: new RegExp(`^${parsedResult.productName}$`, 'i') }
+            const existing = await Product.findOne({
+                name: { $regex: new RegExp(`^${parsed.productName}$`, 'i') }
             });
-
-            if (existingProduct) {
-                return { message: `El producto "${existingProduct.name}" ya existe en el inventario.` };
+            if (existing) {
+                return { action: 'ADD_PRODUCT', message: `El producto **"${existing.name}"** ya existe en el inventario (SKU: ${existing.sku}).` };
             }
 
-            // --- LÓGICA DE CATEGORÍA (Manejo de ObjectId) ---
-            // Buscamos si la categoría ya existe en la base de datos
+            // Find or create category
             let categoryDoc = await Category.findOne({
-                name: { $regex: new RegExp(`^${parsedResult.category}$`, 'i') }
+                name: { $regex: new RegExp(`^${parsed.category}$`, 'i') }
             });
-
-            // Si la categoría no existe, la creamos al vuelo
             if (!categoryDoc) {
-                categoryDoc = new Category({ name: parsedResult.category.toLowerCase() });
+                categoryDoc = new Category({ name: parsed.category.charAt(0).toUpperCase() + parsed.category.slice(1).toLowerCase() });
                 await categoryDoc.save();
             }
 
-            // --- CREACIÓN DEL PRODUCTO ---
-            const initialStock = parsedResult.quantity !== null ? parsedResult.quantity : 0;
             const newProduct = new Product({
-                name: parsedResult.productName,
-                stock: initialStock,
-                price: parsedResult.price,
-                sku: generateSKU(parsedResult.productName), // Generamos el SKU aquí
-                category: categoryDoc._id // Asignamos el ObjectId correcto
+                name: parsed.productName,
+                stock: parsed.quantity ?? 0,
+                price: parsed.price,
+                sku: generateSKU(parsed.productName),
+                category: categoryDoc._id
             });
-
             await newProduct.save();
 
             return {
                 action: 'ADD_PRODUCT',
-                product: newProduct.name,
-                message: `El producto "${newProduct.name}" (SKU: ${newProduct.sku}) ha sido añadido con éxito en la categoría "${categoryDoc.name}".`
+                message: `✅ Producto añadido exitosamente:\n• **${newProduct.name}** (SKU: ${newProduct.sku})\n• Precio: $${newProduct.price}\n• Stock: ${newProduct.stock} uds.\n• Categoría: ${categoryDoc.name}`
             };
+        }
 
-            // --- LÓGICA: ACTUALIZAR STOCK ---
-        } else if (parsedResult.action === 'UPDATE_STOCK') {
-            if (!parsedResult.productName || parsedResult.quantity === null) {
-                return { message: "Necesito el nombre del producto y la cantidad para actualizar el stock." };
+        // ═══ UPDATE PRODUCT ═══
+        if (parsed.action === 'UPDATE_PRODUCT') {
+            if (!parsed.productName) {
+                return { action: 'UPDATE_PRODUCT', message: "Necesito el **nombre del producto** que deseas modificar." };
             }
 
             const product = await Product.findOne({
-                name: { $regex: parsedResult.productName, $options: 'i' }
+                name: { $regex: new RegExp(parsed.productName, 'i') }
             });
 
             if (!product) {
-                return { message: `No encontré ningún producto llamado "${parsedResult.productName}".` };
+                return { action: 'UPDATE_PRODUCT', message: `No encontré ningún producto llamado **"${parsed.productName}"**.` };
+            }
+
+            const changes = [];
+
+            if (parsed.newName) {
+                product.name = parsed.newName;
+                changes.push(`Nombre → ${parsed.newName}`);
+            }
+            if (parsed.newPrice !== null && parsed.newPrice !== undefined) {
+                product.price = parsed.newPrice;
+                changes.push(`Precio → $${parsed.newPrice}`);
+            } else if (parsed.price !== null && parsed.price !== undefined) {
+                product.price = parsed.price;
+                changes.push(`Precio → $${parsed.price}`);
+            }
+            if (parsed.category) {
+                let catDoc = await Category.findOne({
+                    name: { $regex: new RegExp(`^${parsed.category}$`, 'i') }
+                });
+                if (!catDoc) {
+                    catDoc = new Category({ name: parsed.category.charAt(0).toUpperCase() + parsed.category.slice(1).toLowerCase() });
+                    await catDoc.save();
+                }
+                product.category = catDoc._id;
+                changes.push(`Categoría → ${catDoc.name}`);
+            }
+
+            if (changes.length === 0) {
+                return { action: 'UPDATE_PRODUCT', message: "No detecté qué campo deseas modificar. Puedes cambiar: **nombre**, **precio** o **categoría**." };
+            }
+
+            await product.save();
+            return {
+                action: 'UPDATE_PRODUCT',
+                message: `✅ Producto **"${product.name}"** actualizado:\n${changes.map(c => `• ${c}`).join('\n')}`
+            };
+        }
+
+        // ═══ DELETE PRODUCT ═══
+        if (parsed.action === 'DELETE_PRODUCT') {
+            if (!parsed.productName) {
+                return { action: 'DELETE_PRODUCT', message: "Necesito el **nombre del producto** que deseas eliminar." };
+            }
+
+            const product = await Product.findOne({
+                name: { $regex: new RegExp(parsed.productName, 'i') }
+            });
+
+            if (!product) {
+                return { action: 'DELETE_PRODUCT', message: `No encontré ningún producto llamado **"${parsed.productName}"**.` };
+            }
+
+            const deletedName = product.name;
+            const deletedSku = product.sku;
+            await Product.findByIdAndDelete(product._id);
+
+            return {
+                action: 'DELETE_PRODUCT',
+                message: `🗑️ Producto eliminado:\n• **${deletedName}** (SKU: ${deletedSku}) ha sido eliminado del inventario.`
+            };
+        }
+
+        // ═══ UPDATE STOCK ═══
+        if (parsed.action === 'UPDATE_STOCK') {
+            if (!parsed.productName || parsed.quantity === null || parsed.quantity === undefined) {
+                return { action: 'UPDATE_STOCK', message: "Necesito el **nombre del producto** y la **cantidad** para actualizar el stock." };
+            }
+
+            const product = await Product.findOne({
+                name: { $regex: new RegExp(parsed.productName, 'i') }
+            });
+
+            if (!product) {
+                return { action: 'UPDATE_STOCK', message: `No encontré ningún producto llamado **"${parsed.productName}"**.` };
             }
 
             const oldStock = product.stock;
-            product.stock = parsedResult.quantity;
+            product.stock = parsed.quantity;
             await product.save();
 
             return {
                 action: 'UPDATE_STOCK',
-                message: `Stock de ${product.name} actualizado. Antes: ${oldStock}, Ahora: ${product.stock}.`
-            };
-
-            // --- LÓGICA: CONSULTAR STOCK ---
-        } else if (parsedResult.action === 'CHECK_STOCK') {
-            if (!parsedResult.productName) {
-                return { message: "Necesito el nombre del producto para consultar el stock." };
-            }
-
-            const product = await Product.findOne({
-                name: { $regex: parsedResult.productName, $options: 'i' }
-            });
-
-            if (!product) {
-                return { message: `No encontré ningún producto llamado "${parsedResult.productName}".` };
-            }
-
-            return {
-                action: 'CHECK_STOCK',
-                message: `El stock actual de ${product.name} es de ${product.stock} unidades.`
+                message: `📦 Stock actualizado de **${product.name}**:\n• Antes: ${oldStock} uds.\n• Ahora: ${product.stock} uds.`
             };
         }
 
-        return { message: parsedResult.message || "No estoy seguro de qué hacer con esa orden." };
+        // ═══ CHECK STOCK ═══
+        if (parsed.action === 'CHECK_STOCK') {
+            if (!parsed.productName) {
+                return { action: 'CHECK_STOCK', message: "Necesito el **nombre del producto** para consultar el stock." };
+            }
+
+            const product = await Product.findOne({
+                name: { $regex: new RegExp(parsed.productName, 'i') }
+            }).populate('category', 'name');
+
+            if (!product) {
+                return { action: 'CHECK_STOCK', message: `No encontré ningún producto llamado **"${parsed.productName}"**.` };
+            }
+
+            const status = product.stock <= (product.criticalThreshold || 10)
+                ? '🔴 Stock Crítico'
+                : product.stock <= (product.criticalThreshold || 10) * 2
+                    ? '🟡 Stock Bajo'
+                    : '🟢 En Stock';
+
+            return {
+                action: 'CHECK_STOCK',
+                message: `📊 Información de **${product.name}** (SKU: ${product.sku}):\n• Stock: ${product.stock} uds. — ${status}\n• Precio: $${product.price}\n• Categoría: ${product.category?.name || 'Sin categoría'}\n• Umbral crítico: ${product.criticalThreshold || 10} uds.`
+            };
+        }
+
+        // ═══ LIST PRODUCTS ═══
+        if (parsed.action === 'LIST_PRODUCTS') {
+            let filter = {};
+
+            if (parsed.filterCategory || parsed.category) {
+                const catName = parsed.filterCategory || parsed.category;
+                const catDoc = await Category.findOne({
+                    name: { $regex: new RegExp(catName, 'i') }
+                });
+                if (catDoc) {
+                    filter.category = catDoc._id;
+                } else {
+                    return { action: 'LIST_PRODUCTS', message: `No encontré la categoría **"${catName}"**. Intenta con otra.` };
+                }
+            }
+
+            const products = await Product.find(filter)
+                .populate('category', 'name')
+                .sort({ name: 1 })
+                .limit(15);
+
+            if (products.length === 0) {
+                return { action: 'LIST_PRODUCTS', message: "No se encontraron productos con esos criterios." };
+            }
+
+            const list = products.map(formatProduct).join('\n');
+            const total = await Product.countDocuments(filter);
+            const header = total > 15
+                ? `📋 Mostrando **15 de ${total}** productos:`
+                : `📋 **${total}** producto(s) encontrado(s):`;
+
+            return {
+                action: 'LIST_PRODUCTS',
+                message: `${header}\n\n${list}`
+            };
+        }
+
+        // Fallback
+        return { action: 'UNKNOWN', message: parsed.message || "No estoy seguro de qué hacer con esa orden. ¿Podrías reformularla?" };
 
     } catch (error) {
         console.error("Gemini Service Error:", error);

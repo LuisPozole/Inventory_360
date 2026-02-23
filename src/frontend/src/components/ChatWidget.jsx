@@ -15,6 +15,26 @@ const ChatWidget = () => {
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
+    // Simple markdown-like renderer for AI messages
+    const renderMessage = (text) => {
+        if (!text) return null;
+        return text.split('\n').map((line, i) => {
+            // Convert **bold** to <strong>
+            const parts = line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    return <strong key={j}>{part.slice(2, -2)}</strong>;
+                }
+                return part;
+            });
+            return (
+                <span key={i}>
+                    {i > 0 && <br />}
+                    {parts}
+                </span>
+            );
+        });
+    };
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -102,7 +122,9 @@ const ChatWidget = () => {
                             </div>
                         )}
                         <div className="message-bubble">
-                            <div className="message-text">{msg.text}</div>
+                            <div className="message-text">
+                                {msg.sender === 'ia' ? renderMessage(msg.text) : msg.text}
+                            </div>
                             <div className="message-time">
                                 {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>

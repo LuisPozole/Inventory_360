@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Menu } from 'lucide-react';
 import Dashboard from './components/Dashboard';
+import Inventory from './components/Inventory';
 import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
@@ -36,7 +37,12 @@ function App() {
         )}
       </div>
 
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        currentView={currentView}
+        onNavigate={(view) => { setCurrentView(view); setIsSidebarOpen(false); }}
+      />
 
       {currentView === 'dashboard' && (
         <Dashboard
@@ -47,6 +53,10 @@ function App() {
           }}
           onNavigateToProfile={() => setCurrentView('profile')}
         />
+      )}
+
+      {currentView === 'inventory' && (
+        <Inventory />
       )}
 
       {currentView === 'profile' && (
