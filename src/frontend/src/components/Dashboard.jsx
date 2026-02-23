@@ -18,10 +18,14 @@ const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [showSearchResults, setShowSearchResults] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
     const [dismissedAlerts, setDismissedAlerts] = useState([]);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [userData, setUserData] = useState(null);
     const userMenuRef = useRef(null);
+    const searchRef = useRef(null);
 
     const API_BASE = import.meta.env.VITE_API_URL
         ? new URL(import.meta.env.VITE_API_URL).origin
@@ -37,6 +41,42 @@ const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Close search results on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (searchRef.current && !searchRef.current.contains(e.target)) {
+                setShowSearchResults(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Debounced product search
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setSearchResults([]);
+            setShowSearchResults(false);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            try {
+                const res = await api.get('/products');
+                const q = searchQuery.toLowerCase();
+                const filtered = res.data.filter(p =>
+                    p.name?.toLowerCase().includes(q) ||
+                    p.sku?.toLowerCase().includes(q) ||
+                    p.category?.name?.toLowerCase().includes(q)
+                ).slice(0, 8);
+                setSearchResults(filtered);
+                setShowSearchResults(filtered.length > 0);
+            } catch (err) {
+                console.error('Search error:', err);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     // Fetch user data
     useEffect(() => {
@@ -170,14 +210,33 @@ const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
                     <span className="breadcrumb-item active">Dashboard</span>
                 </nav>
                 <div className="dashboard-topbar-right">
-                    <div className="search-bar">
+                    <div className="search-bar" ref={searchRef}>
                         <FaSearch className="search-icon" />
                         <input
                             type="text"
                             placeholder="Buscar productos, SKU, categorías..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
                         />
+                        {showSearchResults && (
+                            <div className="search-dropdown">
+                                {searchResults.map(p => (
+                                    <div key={p._id} className="search-result-item" onClick={() => { setSelectedProduct(p); setShowSearchResults(false); setSearchQuery(''); }}>
+                                        <div className="search-result-main">
+                                            <span className="search-result-name">{p.name}</span>
+                                            <span className="search-result-sku">SKU: {p.sku}</span>
+                                        </div>
+                                        <div className="search-result-meta">
+                                            <span className={`search-result-stock ${p.stock <= 10 ? 'critical' : p.stock <= 20 ? 'low' : 'ok'}`}>
+                                                {p.stock} uds.
+                                            </span>
+                                            <span className="search-result-price">{formatCurrency(p.price)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <div className="admin-dropdown-wrapper" ref={userMenuRef}>
                         <button
@@ -434,6 +493,54 @@ const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
                     </div>
                 </div>
             </div>
+            {/* Product Detail Modal */}
+            {selectedProduct && (
+                <div className="pd-overlay" onClick={() => setSelectedProduct(null)}>
+                    <div className="pd-modal" onClick={e => e.stopPropagation()}>
+                        <button className="pd-close" onClick={() => setSelectedProduct(null)}>✕</button>
+                        <div className="pd-header">
+                            <div className="pd-icon-wrap">
+                                <FaBoxes />
+                            </div>
+                            <div>
+                                <h2 className="pd-name">{selectedProduct.name}</h2>
+                                <span className="pd-sku">SKU: {selectedProduct.sku}</span>
+                            </div>
+                        </div>
+                        <div className="pd-grid">
+                            <div className="pd-card">
+                                <span className="pd-card-label">Categoría</span>
+                                <span className="pd-card-value">{selectedProduct.category?.name || 'Sin categoría'}</span>
+                            </div>
+                            <div className="pd-card">
+                                <span className="pd-card-label">Precio</span>
+                                <span className="pd-card-value price">{formatCurrency(selectedProduct.price)}</span>
+                            </div>
+                            <div className="pd-card">
+                                <span className="pd-card-label">Stock</span>
+                                <span className={`pd-card-value stock ${selectedProduct.stock <= 10 ? 'critical' : selectedProduct.stock <= 20 ? 'low' : 'ok'}`}>
+                                    {selectedProduct.stock} unidades
+                                </span>
+                            </div>
+                            <div className="pd-card">
+                                <span className="pd-card-label">Umbral Crítico</span>
+                                <span className="pd-card-value">{selectedProduct.criticalThreshold || 10} uds.</span>
+                            </div>
+                        </div>
+                        {selectedProduct.description && (
+                            <div className="pd-description">
+                                <span className="pd-card-label">Descripción</span>
+                                <p>{selectedProduct.description}</p>
+                            </div>
+                        )}
+                        <div className="pd-status-bar">
+                            <span className={`pd-status-badge ${selectedProduct.stock <= 10 ? 'critical' : selectedProduct.stock <= 20 ? 'low' : 'ok'}`}>
+                                {selectedProduct.stock <= 10 ? '🔴 Stock Crítico' : selectedProduct.stock <= 20 ? '🟡 Stock Bajo' : '🟢 En Stock'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
