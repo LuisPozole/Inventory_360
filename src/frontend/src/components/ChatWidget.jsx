@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FaComments, FaPaperPlane, FaRobot, FaUser } from 'react-icons/fa';
 import api from '../config/api';
 
-const ChatWidget = () => {
+const ChatWidget = ({ userData }) => {
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         {
@@ -71,7 +72,13 @@ const ChatWidget = () => {
             return;
             */
 
-            const res = await api.post('/chat', { message: userMsg.text });
+            // Build conversation history (last 10 messages for context)
+            const history = messages.slice(-10).map(m => ({
+                role: m.sender === 'user' ? 'user' : 'assistant',
+                content: m.text
+            }));
+
+            const res = await api.post('/chat', { message: userMsg.text, history });
 
             setMessages((prev) => [
                 ...prev,
@@ -131,7 +138,11 @@ const ChatWidget = () => {
                         </div>
                         {msg.sender === 'user' && (
                             <div className="message-avatar user">
-                                <FaUser />
+                                {userData?.profileImage ? (
+                                    <img src={`${API_BASE}${userData.profileImage}`} alt={userData.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                ) : (
+                                    <FaUser />
+                                )}
                             </div>
                         )}
                     </div>
@@ -173,7 +184,7 @@ const ChatWidget = () => {
                     <FaPaperPlane />
                 </button>
             </form>
-        </div>
+        </div >
     );
 };
 

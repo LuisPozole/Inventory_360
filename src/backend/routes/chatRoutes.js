@@ -8,4 +8,14 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // @access  Private
 router.post('/', authMiddleware, chatController.handleChat);
 
+// @route   GET api/chat/history
+// @desc    Get chat history for authenticated user
+// @access  Private
+router.get('/history', authMiddleware, chatController.getChatHistory);
+
+// @route   DELETE api/chat/history
+// @desc    Delete all chat history for authenticated user
+// @access  Private
+router.delete('/history', authMiddleware, chatController.deleteChatHistory);
+
 module.exports = router;

@@ -23,9 +23,16 @@ function formatProduct(p) {
     return `• **${p.name}** (SKU: ${p.sku}) — $${p.price} | Stock: ${p.stock} uds. ${status} | Cat: ${catName}`;
 }
 
-async function processCommand(commandText) {
+async function processCommand(commandText, history = []) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        // Build conversation context from history
+        const historyText = history.length > 0
+            ? '\nHistorial reciente de la conversación:\n' +
+            history.map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n') +
+            '\n'
+            : '';
 
         // ── Step 1: Classify intent ──
         const classifyPrompt = `
@@ -53,8 +60,8 @@ Devuelve ÚNICAMENTE un objeto JSON VÁLIDO con esta estructura:
   "newPrice": number o null (para UPDATE_PRODUCT),
   "filterCategory": "categoría para filtrar al listar, o null",
   "message": "Mensaje amigable confirmando la acción o explicando qué falta (en Español)"
-}
-
+Usa el historial de conversación para entender el contexto. Si el usuario dice "ese", "el mismo", "cambia su precio", etc., infiere a qué producto se refiere del historial.
+${historyText}
 Mensaje del Usuario: "${commandText}"
 `;
 
@@ -80,7 +87,7 @@ Eres un asistente virtual amigable llamado "INV 360 Assistant" para una empresa.
 Responde la siguiente pregunta o mensaje de manera útil, amigable y concisa. Siempre en Español.
 Si la pregunta es un saludo, responde de forma cálida y ofrece tu ayuda.
 Puedes ayudar con preguntas generales, definiciones, cálculos, y cualquier otro tema.
-
+${historyText}
 Mensaje: "${commandText}"
 `;
             const chatResult = await model.generateContent(chatPrompt);

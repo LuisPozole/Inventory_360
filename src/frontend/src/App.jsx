@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
+import ChatPage from './components/ChatPage';
 import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 import Profile from './components/Profile';
+import api from './config/api';
 import './App.css';
 
 function App() {
@@ -13,6 +15,13 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard');
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    if (token) {
+      api.get('/auth/me').then(res => setUserData(res.data)).catch(() => { });
+    }
+  }, [token]);
 
   if (!token) {
     return <Login onLoginSuccess={setToken} />;
@@ -59,11 +68,16 @@ function App() {
         <Inventory />
       )}
 
+      {currentView === 'chatbot' && (
+        <ChatPage userData={userData} />
+      )}
+
       {currentView === 'profile' && (
         <Profile onBack={() => setCurrentView('dashboard')} />
       )}
 
-      <ChatWidget />
+      {/* Floating widget hidden when ChatPage is active */}
+      {currentView !== 'chatbot' && <ChatWidget userData={userData} />}
     </div>
   );
 }
