@@ -28,4 +28,9 @@ router.get('/category-demand', authMiddleware, dashboardController.getCategoryDe
 // @access  Private
 router.get('/recommendations', authMiddleware, dashboardController.getRecommendations);
 
+// @route   GET api/dashboard/strategy-report
+// @desc    Generate AI strategy report in text (Admins only)
+// @access  Private
+router.get('/strategy-report', authMiddleware, dashboardController.getStrategyReport);
+
 module.exports = router;

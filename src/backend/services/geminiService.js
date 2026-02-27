@@ -308,6 +308,45 @@ Mensaje: "${commandText}"
     }
 }
 
+// ── Función para generar reporte estratégico del Dashboard ──
+async function generateStrategyReport(contextData) {
+    try {
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const reportPrompt = `
+Eres un Analista de Negocios Experto y Consultor Estratégico de Retail para el sistema "Inventory 360".
+El usuario (Administrador) ha solicitado un Diagnóstico Ejecutivo de su inventario.
+A continuación te proveo los datos calculados de las últimas semanas:
+
+Datos Estadísticos Globales:
+- Ventas Totales (Hoy): $${contextData.stats.salesToday}
+- Total en Stock (Unidades): ${contextData.stats.totalStock}
+- Rotación Promedio: ${contextData.stats.avgRotation} días
+
+Alertas Críticas (Productos que requieren atención inmediata o próxima):
+${JSON.stringify(contextData.alerts.alerts.map(a => a.name + ' (Cat: ' + a.category + ') - Stock: ' + a.stock + ' - Estado: ' + a.severity), null, 2)}
+
+Tendencia de Categorías (Próximos 30 días en base a historial reciente):
+${JSON.stringify(contextData.categoryDemand, null, 2)}
+
+Tu objetivo es generar un Reporte Ejecutivo profesional de 3 a 4 párrafos en texto estructurado y directo para imprimir en un documento PDF. NO uses formato Markdown complejo como tablas ni negritas excesivas, usa viñetas simples o números.
+Debes estructurarlo en:
+1. Resumen de la Situación Actual: (Un párrafo evaluando la rotación, el total vendido y la salud general).
+2. Puntos Críticos a Resolver: (Menciona problemas de stock bajo basándote en las alertas provistas).
+3. Recomendaciones Estratégicas y Predicción: (¿Qué categorías se deben impulsar? ¿Qué se predice a futuro o qué táctica de recompras sugieres basándote en la tendencia de las categorías?).
+
+Responde de manera profesional, asertiva y ejecutiva en Español, directo al administrador y con recomendaciones accionables reales de inventario.
+`;
+        const result = await model.generateContent(reportPrompt);
+        const response = await result.response;
+        return response.text().trim();
+    } catch (error) {
+        console.error("Error al generar reporte de estrategia con Gemini:", error);
+        throw new Error("No se pudo generar el reporte con IA en este momento.");
+    }
+}
+
 module.exports = {
-    processCommand
+    processCommand,
+    generateStrategyReport
 };

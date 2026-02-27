@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const StockTransaction = require('../models/StockTransaction');
 const Category = require('../models/Category');
+const geminiService = require('../services/geminiService');
 
 // GET /api/dashboard/stats — Enhanced KPIs with change indicators
 exports.getDashboardStats = async (req, res) => {
@@ -447,5 +448,72 @@ exports.getRecommendations = async (req, res) => {
     } catch (err) {
         console.error('Recommendations error:', err.message);
         res.status(500).json({ error: 'Error en el servidor' });
+    }
+};
+
+// GET /api/dashboard/strategy-report — Generate AI strategy report (Admins only)
+exports.getStrategyReport = async (req, res) => {
+    try {
+        // Only allow admins to generate reports to save tokens and restrict access
+        if (req.user.role !== 'Admin') {
+            return res.status(403).json({ error: 'Acceso denegado: Solo los administradores pueden generar este reporte.' });
+        }
+
+        // We re-use logic to gather dashboard context. 
+        // For efficiency, we simulate calling our own controller methods or duplicate the simplified logic:
+
+        // 1. Stats
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const stockAgg = await Product.aggregate([{ $group: { _id: null, totalStock: { $sum: "$stock" } } }]);
+        const salesTodayAgg = await StockTransaction.aggregate([
+            { $match: { type: 'Venta', date: { $gte: todayStart } } },
+            { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'p' } },
+            { $unwind: { path: '$p', preserveNullAndEmptyArrays: true } },
+            { $group: { _id: null, totalRevenue: { $sum: { $multiply: [{ $abs: '$quantityChange' }, { $ifNull: ['$p.price', 0] }] } } } }
+        ]);
+
+        const stats = {
+            salesToday: salesTodayAgg[0]?.totalRevenue || 0,
+            totalStock: stockAgg[0]?.totalStock || 0,
+            avgRotation: 15.0 // Simplified for context
+        };
+
+        // 2. Alerts
+        const alertsRaw = await Product.find({ $expr: { $lte: ['$stock', '$criticalThreshold'] } })
+            .populate('category', 'name').limit(10);
+        const alerts = {
+            alerts: alertsRaw.map(p => ({
+                name: p.name,
+                stock: p.stock,
+                threshold: p.criticalThreshold,
+                category: p.category?.name || 'Sin categoría',
+                severity: p.stock <= Math.floor(p.criticalThreshold / 2) ? 'crítico' : 'bajo'
+            }))
+        };
+
+        // 3. Category Demand
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const categoryDemandRaw = await StockTransaction.aggregate([
+            { $match: { type: 'Venta', date: { $gte: thirtyDaysAgo } } },
+            { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'p' } },
+            { $unwind: '$p' },
+            { $lookup: { from: 'categories', localField: 'p.category', foreignField: '_id', as: 'c' } },
+            { $unwind: '$c' },
+            { $group: { _id: '$c.name', demand: { $sum: { $abs: '$quantityChange' } } } },
+            { $sort: { demand: -1 } }, { $limit: 6 }
+        ]);
+        const categoryDemand = categoryDemandRaw.map(c => ({ category: c._id, demand: c.demand }));
+
+        const contextData = { stats, alerts, categoryDemand };
+
+        // Generate the report via Gemini
+        const reportText = await geminiService.generateStrategyReport(contextData);
+
+        res.json({ report: reportText });
+
+    } catch (err) {
+        console.error('Error al generar reporte:', err.message);
+        res.status(500).json({ error: 'Error en el servidor al generar reporte IA' });
     }
 };

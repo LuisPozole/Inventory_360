@@ -8,6 +8,7 @@ import {
     LineChart, Line, BarChart, Bar,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { jsPDF } from 'jspdf';
 import api from '../config/api';
 
 const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
@@ -24,6 +25,7 @@ const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
     const [dismissedAlerts, setDismissedAlerts] = useState([]);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [userData, setUserData] = useState(null);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const userMenuRef = useRef(null);
     const searchRef = useRef(null);
 
@@ -137,6 +139,46 @@ const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
 
     const dismissAlert = (id) => {
         setDismissedAlerts(prev => [...prev, id]);
+    };
+
+    const handleGenerateReport = async () => {
+        try {
+            setIsGeneratingReport(true);
+            const res = await api.get('/dashboard/strategy-report');
+            const reportText = res.data.report;
+
+            // Generate PDF
+            const doc = new jsPDF();
+
+            // Portada / Header PDF
+            doc.setFontSize(22);
+            doc.setTextColor(15, 23, 42); // slate-900
+            doc.text('Diagnostic Strategy Report - Inventory 360', 15, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139); // slate-500
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 15, 28);
+            doc.text(`Requested by: ${userData?.name || 'Administrator'}`, 15, 33);
+
+            doc.setDrawColor(226, 232, 240); // slate-200
+            doc.line(15, 38, 195, 38);
+
+            // Report Body
+            doc.setFontSize(12);
+            doc.setTextColor(51, 65, 85); // slate-700
+
+            // splitTextToSize handles line breaks automatically
+            const splitText = doc.splitTextToSize(reportText, 175);
+            doc.text(splitText, 15, 48);
+
+            // Download
+            doc.save('Reporte_Estrategico_Inv360.pdf');
+        } catch (err) {
+            console.error('Error generando reporte:', err);
+            alert('Hubo un error al generar el reporte estratégico. Intenta de nuevo.');
+        } finally {
+            setIsGeneratingReport(false);
+        }
     };
 
     const activeAlerts = alerts.alerts.filter(a => !dismissedAlerts.includes(a._id));
@@ -302,8 +344,30 @@ const Dashboard = ({ onLastUpdated, onLogout, onNavigateToProfile }) => {
 
             {/* Welcome Section */}
             <div className="dashboard-welcome">
-                <h2>Bienvenido al Dashboard</h2>
-                <p>Vista general de tu inventario e insights generados por IA</p>
+                <div>
+                    <h2>Bienvenido al Dashboard</h2>
+                    <p>Vista general de tu inventario e insights generados por IA</p>
+                </div>
+                {userData?.role === 'Admin' && (
+                    <button
+                        className="btn-primary"
+                        onClick={handleGenerateReport}
+                        disabled={isGeneratingReport}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        {isGeneratingReport ? (
+                            <>
+                                <FaSyncAlt className="spin-animation" />
+                                Generando IA...
+                            </>
+                        ) : (
+                            <>
+                                <span>✨</span>
+                                Generar Reporte Estratégico (PDF)
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Stat Cards */}
