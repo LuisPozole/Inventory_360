@@ -7,6 +7,7 @@ import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 import Profile from './components/Profile';
+import UserScreen from './components/UserScreen';
 import api from './config/api';
 import './App.css';
 
@@ -16,15 +17,37 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard');
   const [userData, setUserData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (token) {
-      api.get('/auth/me').then(res => setUserData(res.data)).catch(() => { });
+      api.get('/auth/me')
+        .then(res => {
+          setUserData(res.data);
+        })
+        .catch(() => { })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
     }
   }, [token]);
 
   if (!token) {
     return <Login onLoginSuccess={setToken} />;
+  }
+
+  if (isLoading) {
+    return <div>Cargando...</div>;
+  }
+
+  if (userData && userData.role === 'Vendedor') {
+    return <UserScreen onLogout={() => {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUserData(null);
+    }} />;
   }
 
   return (
