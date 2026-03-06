@@ -1,6 +1,8 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const User = require('../models/User');
 const { validationResult } = require('express-validator');
+const emailService = require('../services/emailService');
 
 // Get all products (with optional filters)
 exports.getProducts = async (req, res) => {
@@ -115,6 +117,9 @@ exports.updateProduct = async (req, res) => {
 
         if (!product) return res.status(404).json({ msg: 'Producto no encontrado' });
 
+        // Guardar el estado anterior antes de modificar el documento
+        const prevStatus = product.status;
+
         // Update fields
         if (sku !== undefined) product.sku = sku;
         if (name !== undefined) product.name = name;
@@ -127,6 +132,17 @@ exports.updateProduct = async (req, res) => {
 
         // Use save() so pre-save hook recalculates status
         await product.save();
+
+        // Enviar correo de alerta si el estado pasó de Normal a Crítico
+        if (prevStatus === 'Normal' && product.status === 'Critico') {
+            const admins = await User.find({ role: 'Admin' });
+            const adminEmails = admins.map(admin => admin.email);
+            if (adminEmails.length > 0) {
+                // Se envía de forma asíncrona para no bloquear la respuesta HTTP
+                emailService.sendStockAlertEmail(product, adminEmails);
+            }
+        }
+
         const populated = await product.populate('category', 'name');
         res.json(populated);
     } catch (err) {
