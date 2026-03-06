@@ -8,6 +8,11 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // @access  Private
 router.post('/', authMiddleware, chatController.handleChat);
 
+// @route   POST api/chat/voice
+// @desc    Process voice command, run through Gemini and return synthesized voice
+// @access  Private
+router.post('/voice', authMiddleware, chatController.handleVoiceChat);
+
 // @route   GET api/chat/history
 // @desc    Get chat history for authenticated user
 // @access  Private

@@ -1,0 +1,242 @@
+.voice-overlay-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.voice-overlay-close {
+    position: absolute;
+    top: 30px;
+    right: 40px;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.voice-overlay-close:hover {
+    color: var(--accent-light);
+}
+
+.voice-overlay-content {
+    background: rgba(30, 30, 40, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 50px 30px;
+    width: 90%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.voice-title {
+    color: #fff;
+    font-size: 1.5rem;
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+/* Dancing Circle */
+.voice-circle-container {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 40px;
+}
+
+.voice-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 120px;
+    height: 120px;
+    transform: translate(-50%, -50%) scale(1);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(93, 95, 239, 0.3) 0%, rgba(93, 95, 239, 0.1) 70%, transparent 100%);
+    box-shadow: 0 0 20px rgba(93, 95, 239, 0.3);
+    pointer-events: none;
+    transition: transform 0.05s ease-out;
+    /* Fast reaction to volume */
+    transform-origin: center center;
+}
+
+/* Base animation when active but quiet */
+.voice-circle.active {
+    animation: gentlePulse 2s infinite ease-in-out alternate;
+}
+
+@keyframes gentlePulse {
+    from {
+        opacity: 0.8;
+        box-shadow: 0 0 20px rgba(93, 95, 239, 0.4);
+    }
+
+    to {
+        opacity: 1;
+        box-shadow: 0 0 40px rgba(93, 95, 239, 0.7);
+    }
+}
+
+.voice-circle-inner {
+    position: absolute;
+    z-index: 2;
+    background: rgba(20, 20, 30, 0.9);
+    border: 2px solid var(--primary-color);
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.voice-spin {
+    animation: spin 1s linear infinite;
+    color: var(--accent-light);
+    font-size: 30px;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Text */
+.voice-text-area {
+    width: 100%;
+    min-height: 80px;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.voice-transcript {
+    color: #aaa;
+    font-style: italic;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+}
+
+.voice-response {
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+/* Controls */
+.voice-controls {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.voice-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    justify-content: center;
+}
+
+.voice-send-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 30px;
+    border: none;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-light, #7c3aed));
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    box-shadow: 0 4px 15px rgba(93, 95, 239, 0.4);
+}
+
+.voice-send-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 20px rgba(93, 95, 239, 0.6);
+}
+
+.voice-send-btn:active {
+    transform: scale(0.97);
+}
+
+.voice-btn {
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.start-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.start-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+}
+
+.stop-btn {
+    background: #ef4444;
+    color: white;
+    animation: stopPulse 1.5s infinite alternate;
+}
+
+.stop-btn:hover {
+    background: #dc2626;
+}
+
+@keyframes stopPulse {
+    0% {
+        transform: scale(1);
+    }
+
+    100% {
+        transform: scale(1.05);
+    }
+}
+
+.voice-playing-text {
+    color: var(--accent-light);
+    font-weight: 600;
+    margin: 0;
+    padding: 10px;
+}

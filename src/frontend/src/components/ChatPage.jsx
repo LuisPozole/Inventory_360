@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FaPaperPlane, FaRobot, FaUser, FaTrashAlt, FaClock, FaComments, FaPlus } from 'react-icons/fa';
+import { FaPaperPlane, FaRobot, FaUser, FaTrashAlt, FaClock, FaComments, FaPlus, FaMicrophone } from 'react-icons/fa';
 import api from '../config/api';
+import VoiceChatOverlay from './VoiceChatOverlay';
 import './ChatPage.css';
 
 const ChatPage = ({ userData }) => {
@@ -13,6 +14,7 @@ const ChatPage = ({ userData }) => {
     const [historyLogs, setHistoryLogs] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(true);
     const [showHistory, setShowHistory] = useState(false);
+    const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -85,6 +87,12 @@ const ChatPage = ({ userData }) => {
         groups[date].push(log);
         return groups;
     }, {});
+
+    const handleVoiceMessageComplete = useCallback((userMsg, iaMsg) => {
+        setMessages(prev => [...prev, userMsg, iaMsg]);
+        fetchHistory();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -243,6 +251,15 @@ const ChatPage = ({ userData }) => {
                             disabled={loading}
                         />
                         <button
+                            type="button"
+                            className="chatpage-voice-btn"
+                            onClick={() => setShowVoiceOverlay(true)}
+                            title="Chat de Voz"
+                            disabled={loading}
+                        >
+                            <FaMicrophone />
+                        </button>
+                        <button
                             type="submit"
                             className="chatpage-send-btn"
                             disabled={!inputText.trim() || loading}
@@ -252,6 +269,14 @@ const ChatPage = ({ userData }) => {
                     </form>
                 </div>
             </div>
+
+            {showVoiceOverlay && (
+                <VoiceChatOverlay
+                    userData={userData}
+                    onClose={() => setShowVoiceOverlay(false)}
+                    onMessageComplete={handleVoiceMessageComplete}
+                />
+            )}
         </div>
     );
 };

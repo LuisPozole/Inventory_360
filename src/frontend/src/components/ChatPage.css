@@ -356,29 +356,56 @@
 }
 
 .chatpage-send-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    border: none;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.25s ease;
-    flex-shrink: 0;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(93, 95, 239, 0.3);
+}
+
+.chatpage-voice-btn {
+    background-color: var(--accent-light);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(76, 201, 240, 0.3);
+    margin-right: 10px;
+}
+
+.chatpage-voice-btn:hover:not(:disabled) {
+    background-color: #3bb5d9;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(76, 201, 240, 0.4);
 }
 
 .chatpage-send-btn:hover:not(:disabled) {
+    background-color: var(--primary-hover);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 6px 15px rgba(93, 95, 239, 0.4);
 }
 
-.chatpage-send-btn:disabled {
-    opacity: 0.4;
+.chatpage-send-btn:disabled,
+.chatpage-voice-btn:disabled {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
     cursor: not-allowed;
+    box-shadow: none;
 }
 
 /* ═══ Responsive ═══ */
