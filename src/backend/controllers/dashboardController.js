@@ -1,7 +1,9 @@
 const Product = require('../models/Product');
 const StockTransaction = require('../models/StockTransaction');
 const Category = require('../models/Category');
+const User = require('../models/User');
 const geminiService = require('../services/geminiService');
+const emailService = require('../services/emailService');
 
 // GET /api/dashboard/stats — Enhanced KPIs with change indicators
 exports.getDashboardStats = async (req, res) => {
@@ -515,5 +517,41 @@ exports.getStrategyReport = async (req, res) => {
     } catch (err) {
         console.error('Error al generar reporte:', err.message);
         res.status(500).json({ error: 'Error en el servidor al generar reporte IA' });
+    }
+};
+
+// GET /api/dashboard/test-email — Send a test alert email (Admins only)
+exports.testEmailAlert = async (req, res) => {
+    try {
+        if (req.user.role !== 'Admin') {
+            return res.status(403).json({ error: 'Acceso denegado: Solo administradores.' });
+        }
+
+        // Producto ficticio para la prueba
+        const testProduct = {
+            name: 'Producto de Prueba',
+            sku: 'TEST-001',
+            stock: 2,
+            criticalThreshold: 10
+        };
+
+        // Buscar los correos de todos los administradores
+        const admins = await User.find({ role: 'Admin' });
+        const adminEmails = admins.map(a => a.email);
+
+        if (adminEmails.length === 0) {
+            return res.status(400).json({ error: 'No hay administradores registrados con correo electrónico.' });
+        }
+
+        await emailService.sendStockAlertEmail(testProduct, adminEmails);
+
+        res.json({
+            success: true,
+            message: `Correo de prueba enviado a: ${adminEmails.join(', ')}. Revisa tu bandeja de entrada (o la terminal para la URL de Ethereal).`
+        });
+
+    } catch (err) {
+        console.error('Error en test-email:', err.message);
+        res.status(500).json({ error: 'Error al enviar el correo de prueba: ' + err.message });
     }
 };

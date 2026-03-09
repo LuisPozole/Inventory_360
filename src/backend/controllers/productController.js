@@ -97,6 +97,16 @@ exports.createProduct = async (req, res) => {
         });
 
         const product = await newProduct.save();
+
+        // Enviar alerta por correo si el producto se crea ya en estado crítico
+        if (product.status === 'Critico') {
+            const admins = await User.find({ role: 'Admin' });
+            const adminEmails = admins.map(admin => admin.email);
+            if (adminEmails.length > 0) {
+                emailService.sendStockAlertEmail(product, adminEmails);
+            }
+        }
+
         const populated = await product.populate('category', 'name');
         res.json(populated);
     } catch (err) {

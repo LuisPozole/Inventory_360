@@ -33,4 +33,9 @@ router.get('/recommendations', authMiddleware, dashboardController.getRecommenda
 // @access  Private
 router.get('/strategy-report', authMiddleware, dashboardController.getStrategyReport);
 
+// @route   GET api/dashboard/test-email
+// @desc    Send a test alert email to verify SMTP config (Admins only)
+// @access  Private (Admin)
+router.get('/test-email', authMiddleware, dashboardController.testEmailAlert);
+
 module.exports = router;
