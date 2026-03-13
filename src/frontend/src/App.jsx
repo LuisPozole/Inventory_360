@@ -7,7 +7,7 @@ import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 import Profile from './components/Profile';
-import UserScreen from './components/UserScreen';
+import UserLayout from './components/user/UserLayout';
 import api from './config/api';
 import './App.css';
 
@@ -43,7 +43,7 @@ function App() {
   }
 
   if (userData && userData.role === 'Vendedor') {
-    return <UserScreen onLogout={() => {
+    return <UserLayout userData={userData} onLogout={() => {
       localStorage.removeItem('token');
       setToken(null);
       setUserData(null);

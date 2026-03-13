@@ -1,0 +1,202 @@
+/* ═══════════════════════════════════════════════════════════
+   INVENTORY 360 — User Sidebar (Vendedor Navigation)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Overlay (mobile only) ── */
+.user-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 900;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--user-transition-base);
+}
+
+.user-sidebar-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ── Sidebar panel ── */
+.user-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--user-sidebar-width);
+    height: 100vh;
+    background: var(--user-bg-surface);
+    border-right: 1px solid var(--user-glass-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 901;
+    transform: translateX(-100%);
+    transition: transform var(--user-transition-base);
+    overflow-y: auto;
+}
+
+.user-sidebar.open {
+    transform: translateX(0);
+}
+
+/* ── Header ── */
+.user-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 20px 12px;
+    flex-shrink: 0;
+}
+
+.user-sidebar-logo {
+    width: 42px;
+    height: 42px;
+    filter: invert(1);
+    mix-blend-mode: screen;
+    opacity: 0.9;
+}
+
+.user-sidebar-brand {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-sidebar-brand-name {
+    font-size: 1rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--user-primary-light), var(--user-accent));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.user-sidebar-brand-role {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--user-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+}
+
+.user-sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--user-radius-sm);
+    background: transparent;
+    color: var(--user-text-muted);
+    cursor: pointer;
+    margin-left: auto;
+    transition: all var(--user-transition-fast);
+}
+
+.user-sidebar-close:hover {
+    background: var(--user-glass-bg-hover);
+    color: var(--user-text-primary);
+}
+
+/* ── Section label ── */
+.user-sidebar-section {
+    padding: 20px 20px 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--user-text-muted);
+}
+
+/* ── Navigation items ── */
+.user-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 12px;
+    flex: 1;
+}
+
+.user-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: var(--user-radius-md);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--user-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--user-transition-fast);
+    width: 100%;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+}
+
+.user-nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px;
+    height: 60%;
+    border-radius: 0 4px 4px 0;
+    background: var(--user-primary);
+    transition: transform var(--user-transition-fast);
+}
+
+.user-nav-item:hover {
+    background: var(--user-glass-bg-hover);
+    color: var(--user-text-primary);
+}
+
+.user-nav-item.active {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.15);
+    color: var(--user-primary-light);
+}
+
+.user-nav-item.active::before {
+    transform: translateY(-50%) scaleY(1);
+}
+
+.user-nav-item svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* ── Footer ── */
+.user-sidebar-footer {
+    padding: 16px 12px;
+    border-top: 1px solid var(--user-glass-border);
+    flex-shrink: 0;
+}
+
+.user-sidebar-footer .user-nav-item {
+    color: var(--user-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Desktop: sidebar is always visible ── */
+@media (min-width: 1024px) {
+    .user-sidebar {
+        transform: translateX(0);
+    }
+
+    .user-sidebar-overlay {
+        display: none;
+    }
+
+    .user-sidebar-close {
+        display: none;
+    }
+}

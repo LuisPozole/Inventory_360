@@ -1,0 +1,325 @@
+/* ═══════════════════════════════════════════════════════════
+   INVENTORY 360 — Product Detail Modal (Vendedor)
+   All classes prefixed with .user-detail
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Overlay ── */
+.user-detail-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: userDetailFadeIn 0.2s ease-out;
+}
+
+@keyframes userDetailFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* ── Modal panel ── */
+.user-detail-modal {
+    background: var(--user-bg-surface);
+    border: 1px solid var(--user-glass-border);
+    border-radius: var(--user-radius-xl);
+    width: 100%;
+    max-width: 640px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: userDetailSlideUp 0.25s ease-out;
+    position: relative;
+}
+
+@keyframes userDetailSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* scrollbar */
+.user-detail-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.user-detail-modal::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.user-detail-modal::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+/* ── Close button ── */
+.user-detail-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--user-glass-border);
+    background: var(--user-glass-bg);
+    color: var(--user-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--user-transition-fast);
+    z-index: 2;
+}
+
+.user-detail-close:hover {
+    background: var(--user-glass-bg-hover);
+    color: white;
+}
+
+/* ── Image ── */
+.user-detail-image {
+    width: 100%;
+    height: 280px;
+    background: rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: var(--user-radius-xl) var(--user-radius-xl) 0 0;
+}
+
+.user-detail-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-detail-image-placeholder {
+    color: var(--user-text-muted);
+    opacity: 0.25;
+}
+
+/* ── Content body ── */
+.user-detail-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ── Title row ── */
+.user-detail-title-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.user-detail-category {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--user-primary-light);
+}
+
+.user-detail-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--user-text-primary);
+    line-height: 1.3;
+}
+
+.user-detail-sku {
+    font-size: 0.8rem;
+    color: var(--user-text-muted);
+    font-family: 'Courier New', monospace;
+}
+
+/* ── Description ── */
+.user-detail-description {
+    font-size: 0.9rem;
+    color: var(--user-text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ── Stats row ── */
+.user-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.user-detail-stat {
+    background: var(--user-glass-bg);
+    border: 1px solid var(--user-glass-border);
+    border-radius: var(--user-radius-md);
+    padding: 14px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.user-detail-stat-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--user-text-muted);
+}
+
+.user-detail-stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.user-detail-stat-value--price {
+    background: linear-gradient(135deg, var(--user-primary-light), var(--user-accent));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.user-detail-stat-value--stock {
+    color: var(--user-accent-light);
+}
+
+.user-detail-stat-value--critical {
+    color: #f87171;
+}
+
+.user-detail-stat-value--status {
+    color: var(--user-text-primary);
+}
+
+/* ── Add to cart area ── */
+.user-detail-cart-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 4px;
+}
+
+.user-detail-qty-control {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--user-glass-border);
+    border-radius: var(--user-radius-sm);
+    overflow: hidden;
+}
+
+.user-detail-qty-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--user-glass-bg);
+    color: var(--user-text-secondary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--user-transition-fast);
+}
+
+.user-detail-qty-btn:hover:not(:disabled) {
+    background: var(--user-glass-bg-hover);
+    color: white;
+}
+
+.user-detail-qty-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.user-detail-qty-value {
+    width: 48px;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--user-text-primary);
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--user-glass-border);
+    border-right: 1px solid var(--user-glass-border);
+    height: 36px;
+    font-family: inherit;
+    outline: none;
+}
+
+.user-detail-add-btn {
+    flex: 1;
+    height: 42px;
+    border-radius: var(--user-radius-sm);
+    border: none;
+    background: linear-gradient(135deg, var(--user-primary), var(--user-accent));
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all var(--user-transition-fast);
+}
+
+.user-detail-add-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+}
+
+.user-detail-add-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ── Added confirmation ── */
+.user-detail-added {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--user-accent-light);
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 10px;
+    animation: userDetailFadeIn 0.2s ease-out;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+    .user-detail-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .user-detail-image {
+        height: 200px;
+    }
+
+    .user-detail-name {
+        font-size: 1.2rem;
+    }
+}
