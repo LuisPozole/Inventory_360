@@ -342,7 +342,7 @@ const Inventory = () => {
                                                 {statusInfo.className === 'status-critical' && (
                                                     <FaExclamationTriangle className="inv-stock-warn" />
                                                 )}
-                                                {product.stock} uds.
+                                                {product.stock} unidades
                                             </td>
                                             <td>
                                                 <span className={`inv-status-badge ${statusInfo.className}`}>

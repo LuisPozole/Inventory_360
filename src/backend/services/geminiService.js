@@ -97,7 +97,12 @@ async function findProductFuzzy(name, populateField) {
 
 async function processCommand(commandText, history = [], isVoice = false) {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+        });
 
         // Build conversation context from history
         const historyText = history.length > 0
@@ -108,8 +113,9 @@ async function processCommand(commandText, history = [], isVoice = false) {
 
         // ── Step 1: Classify intent ──
         const voiceMessageInstruction = isVoice
-            ? `IMPORTANTE: Esta es una sesión de VOZ. El campo "message" se leerá en voz alta con un sintetizador de voz.
+            ? `IMPORTANTE: Esta es una sesión de VOZ. El campo "message" se leerá en voz alta con un sintetizador de voz masculino.
 - Responde en español natural y conversacional, como si hablaras con alguien.
+- Usa pronombres y adjetivos MASCULINOS (ej: "listo", "preparado", "encantado").
 - Sé breve y directo (máximo 2 oraciones).
 - NO uses formato markdown (negritas, viñetas, emojis, saltos de línea).
 - NO uses abreviaciones como "uds." — di "unidades".
@@ -135,17 +141,21 @@ Las acciones disponibles son:
 
 IMPORTANTE: Si el usuario menciona un producto en plural (ej: "jabones", "refrescos", "cocacolas"), usa la forma SINGULAR en el campo "productName" (ej: "jabón", "refresco", "cocacola").
 
-Devuelve ÚNICAMENTE un objeto JSON VÁLIDO con esta estructura (sin texto adicional fuera del JSON):
+IMPORTANTE PARA ADD_PRODUCT: Si el usuario está en medio de una conversación para añadir un producto, usa el historial para ACUMULAR los campos que ya proporcionó en turnos anteriores.
+Por ejemplo, si en el turno 1 dijo "añadir servilletas" (productName="servilleta") y en el turno 2 dijo "15 pesos" (price=15), debes devolver action="ADD_PRODUCT" con productName="servilleta" Y price=15 ambos completos.
+Siempre incluye TODOS los campos que el usuario ya proporcionó en turnos anteriores + el campo nuevo del turno actual.
+
+Devuelve ÚNICAMENTE un objeto JSON VÁLIDO con esta estructura exacta:
 {
   "action": "ADD_PRODUCT" | "UPDATE_PRODUCT" | "DELETE_PRODUCT" | "UPDATE_STOCK" | "CHECK_STOCK" | "LIST_PRODUCTS" | "GENERAL_CHAT",
   "productName": "nombre del producto en singular o null",
-  "quantity": null,
-  "price": null,
+  "quantity": 0,
+  "price": 0,
   "category": "nombre de categoría o null",
-  "newName": null,
-  "newPrice": null,
-  "filterCategory": null,
-  "message": "Mensaje amigable confirmando la acción o explicando qué falta (en Español)"
+  "newName": "nuevo nombre o null",
+  "newPrice": 0,
+  "filterCategory": "categoría o null",
+  "message": "Mensaje amigable confirmando la acción o preguntando por el siguiente dato faltante (en Español)"
 }
 
 Usa el historial de conversación para entender el contexto. Si el usuario dice "ese", "el mismo", "cambia su precio", etc., infiere a qué producto se refiere del historial.
@@ -156,13 +166,28 @@ Mensaje del Usuario: "${commandText}"
         const result = await model.generateContent(classifyPrompt);
         const response = await result.response;
         const text = response.text();
-        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Aggressively clean the response to extract valid JSON
+        let cleanText = text
+            .replace(/```(?:json|JSON|javascript|js)?\s*/g, '')  // opening code fences
+            .replace(/```/g, '')                                  // closing code fences
+            .replace(/^\s*\n/gm, '')                             // blank lines
+            .trim();
+
+        // If the response has text before the JSON, try to extract just the JSON object
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            cleanText = jsonMatch[0];
+        }
+
+        console.log("Gemini raw response:", text.substring(0, 200));
+        console.log("Cleaned for parse:", cleanText.substring(0, 200));
 
         let parsed;
         try {
             parsed = JSON.parse(cleanText);
         } catch (e) {
-            console.error("Failed to parse Gemini response:", text);
+            console.error("Failed to parse Gemini response. Raw text:", text);
+            console.error("Cleaned text:", cleanText);
             return { action: 'UNKNOWN', message: "Lo siento, no pude entender tu solicitud. ¿Podrías reformularla?" };
         }
 
@@ -171,8 +196,9 @@ Mensaje del Usuario: "${commandText}"
         // ═══ GENERAL CHAT ═══
         if (parsed.action === 'GENERAL_CHAT') {
             const voiceChatExtra = isVoice
-                ? `\nIMPORTANTE: Esta es una sesión de VOZ. Tu respuesta se leerá en voz alta.
+                ? `\nIMPORTANTE: Esta es una sesión de VOZ. Tu respuesta se leerá en voz alta con voz masculina.
 - Responde de forma breve, natural y conversacional en español.
+- Usa pronombres y adjetivos MASCULINOS (ej: "estoy listo", "encantado de ayudarte").
 - Máximo 2-3 oraciones cortas.
 - No uses formato markdown, emojis ni listas.
 - Habla como si fueras un asistente real hablando en persona.`
@@ -196,12 +222,27 @@ Mensaje: "${commandText}"
 
         // ═══ ADD PRODUCT ═══
         if (parsed.action === 'ADD_PRODUCT') {
-            if (!parsed.productName || !parsed.price || !parsed.category) {
+            // Step-by-step: ask for the next missing field
+            const missingFields = [];
+            if (!parsed.productName) missingFields.push('nombre');
+            if (parsed.price === null || parsed.price === undefined) missingFields.push('precio');
+            if (!parsed.category) missingFields.push('categoría');
+
+            if (missingFields.length > 0) {
+                // Build a natural question for the next missing field
+                const nextField = missingFields[0];
+                const questions = {
+                    'nombre': '¿Cómo se llama el producto que quieres añadir?',
+                    'precio': `Perfecto, ¿cuál es el precio de ${parsed.productName || 'este producto'}?`,
+                    'categoría': `Entendido, ¿en qué categoría pongo ${parsed.productName || 'este producto'}?`
+                };
+                const voiceQuestion = isVoice
+                    ? questions[nextField]
+                    : (parsed.message || `Necesito el **${nextField}** para continuar.`);
+
                 return {
                     action: 'ADD_PRODUCT',
-                    message: isVoice
-                        ? "Para añadir un producto necesito el nombre, el precio y la categoría. Por ejemplo, puedes decir: añade 10 refrescos, precio 15 pesos, categoría bebidas."
-                        : "Para añadir un producto necesito: **Nombre**, **Precio** y **Categoría**.\nEjemplo: 'Añade 10 refrescos, precio $15, categoría bebidas'."
+                    message: voiceQuestion
                 };
             }
 

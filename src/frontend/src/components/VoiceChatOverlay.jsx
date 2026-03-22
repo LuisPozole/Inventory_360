@@ -17,12 +17,15 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
     const statusRef = useRef('greeting');
     const isSendingRef = useRef(false);
     const sendToBackendRef = useRef(null);
+    const closedRef = useRef(false);
+    const voiceHistoryRef = useRef([]);
 
     // Audio / Animation refs
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
     const circleRef = useRef(null);
     const animationFrameRef = useRef(null);
+    const synthRef = useRef(window.speechSynthesis);
     const micStreamRef = useRef(null);
 
     const firstName = userData?.name ? userData.name.split(' ')[0] : 'Usuario';
@@ -145,7 +148,8 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
         recognition.onend = () => {
             stopMicVisualization();
 
-            // If we're currently sending or playing, don't restart
+            // If we're closed, sending, or playing, don't restart
+            if (closedRef.current) return;
             if (isSendingRef.current) return;
             if (statusRef.current === 'processing' || statusRef.current === 'playing') return;
 
@@ -181,7 +185,7 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
     // ─── Core Functions ───
 
     const beginListening = useCallback(() => {
-        if (!recognitionRef.current) return;
+        if (!recognitionRef.current || closedRef.current) return;
         accumulatedTextRef.current = '';
         lastHeardTextRef.current = ''; // Clear on fresh start
         isSendingRef.current = false;
@@ -194,6 +198,58 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
             console.warn('Recognition start error:', e);
         }
     }, [updateStatus]);
+
+    // ─── Browser TTS Fallback ───
+    const speakWithBrowserTTS = useCallback((text) => {
+        return new Promise((resolve) => {
+            const synth = synthRef.current;
+            if (!synth) {
+                console.warn('SpeechSynthesis not available');
+                resolve();
+                return;
+            }
+            synth.cancel(); // Cancel any ongoing speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'es-MX';
+            utterance.rate = 1.15;   // Faster for a more dynamic feel
+            utterance.pitch = 1.15;  // Warmer, friendlier tone
+            utterance.volume = 1.0;
+
+            // Pick the best available Spanish voice (optimized for Chrome)
+            const voices = synth.getVoices();
+            const spanishVoices = voices.filter(v => v.lang.startsWith('es'));
+
+            // Chrome has great Google voices — prioritize those
+            const preferredVoice =
+                spanishVoices.find(v => /google español/i.test(v.name)) ||          // Google Español (Chrome, very natural)
+                spanishVoices.find(v => /google/i.test(v.name)) ||                  // Any Google voice
+                spanishVoices.find(v => /dalia|sabina|larissa/i.test(v.name)) ||    // Microsoft premium (Edge)
+                spanishVoices.find(v => /microsoft/i.test(v.name)) ||               // Any Microsoft voice
+                spanishVoices.find(v => v.name.toLowerCase().includes('female')) ||  // Prefer female
+                spanishVoices.find(v => !v.localService) ||                         // Online = better quality
+                spanishVoices[0];
+
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+                console.log('Using TTS voice:', preferredVoice.name, preferredVoice.lang);
+            }
+
+            updateStatus('playing');
+
+            utterance.onend = () => {
+                isSendingRef.current = false;
+                setTimeout(() => beginListening(), 400);
+                resolve();
+            };
+            utterance.onerror = (e) => {
+                console.error('Browser TTS error:', e);
+                isSendingRef.current = false;
+                setTimeout(() => beginListening(), 500);
+                resolve();
+            };
+            synth.speak(utterance);
+        });
+    }, [updateStatus, beginListening]);
 
     const sendToBackend = useCallback(async (text) => {
         console.log("--> attempt sendToBackend with text:", text, "isSendingRef:", isSendingRef.current);
@@ -211,11 +267,17 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
             console.log("--> POST /chat/voice executing...");
             const res = await api.post('/chat/voice', {
                 text: text,
-                history: []
+                history: voiceHistoryRef.current
             });
 
             console.log("--> POST /chat/voice success:", res.data);
             setResponseText(res.data.message);
+
+            // Track conversation history for step-by-step flows
+            voiceHistoryRef.current.push(
+                { role: 'user', content: text },
+                { role: 'assistant', content: res.data.message }
+            );
 
             if (onMessageComplete) {
                 onMessageComplete(
@@ -224,13 +286,8 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
                 );
             }
 
-            if (res.data.audioBase64) {
-                await playAudio(res.data.audioBase64);
-            } else {
-                // No audio → go back to listening
-                isSendingRef.current = false;
-                setTimeout(() => beginListening(), 500);
-            }
+            // Use browser TTS to speak the response
+            await speakWithBrowserTTS(res.data.message);
         } catch (error) {
             console.error('Voice API error:', error);
             setDisplayText('Error al procesar. Intentando de nuevo...');
@@ -243,44 +300,7 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
     // Keep ref in sync so closures always call the latest version
     sendToBackendRef.current = sendToBackend;
 
-    const playAudio = useCallback(async (base64audio) => {
-        updateStatus('playing');
-        try {
-            const audioCtx = audioContextRef.current || new (window.AudioContext || window.webkitAudioContext)();
-            audioContextRef.current = audioCtx;
-            if (audioCtx.state === 'suspended') await audioCtx.resume();
-
-            const binaryString = window.atob(base64audio);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-
-            const audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
-            const source = audioCtx.createBufferSource();
-            source.buffer = audioBuffer;
-
-            startAnimation(source);
-            source.connect(audioCtx.destination);
-            source.start(0);
-
-            return new Promise((resolve) => {
-                source.onended = () => {
-                    stopAnimation();
-                    isSendingRef.current = false;
-                    // Auto-open mic after AI finishes speaking
-                    setTimeout(() => beginListening(), 400);
-                    resolve();
-                };
-            });
-        } catch (error) {
-            console.error('Audio playback error:', error);
-            stopAnimation();
-            isSendingRef.current = false;
-            setTimeout(() => beginListening(), 500);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [updateStatus, startAnimation, stopAnimation]);
+    const playAudio = null; // Removed: TTS is handled by browser SpeechSynthesis
 
     // ─── Initial Greeting (runs ONCE) ───
     useEffect(() => {
@@ -289,19 +309,15 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
             setResponseText(`Hola ${firstName}, ¿en qué te puedo ayudar?`);
             try {
                 const res = await api.post('/chat/voice', {
-                    text: `Saluda brevemente al usuario llamándolo "${firstName}". Di algo como "Hola ${firstName}, estoy lista para ayudarte" de forma breve y cálida.`,
+                    text: `Saluda brevemente al usuario llamándolo "${firstName}". Di algo como "Hola ${firstName}, estoy listo para ayudarte" de forma breve y cálida. Usa pronombres masculinos.`,
                     history: []
                 });
                 setResponseText(res.data.message);
-
-                if (res.data.audioBase64) {
-                    await playAudio(res.data.audioBase64);
-                } else {
-                    beginListening();
-                }
+                await speakWithBrowserTTS(res.data.message);
             } catch (error) {
                 console.error('Greeting error:', error);
-                beginListening();
+                // Fallback: speak the default greeting
+                await speakWithBrowserTTS(`Hola ${firstName}, ¿en qué te puedo ayudar?`);
             }
         };
 
@@ -333,9 +349,19 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
 
     // ─── Close handler ───
     const handleClose = () => {
+        closedRef.current = true;
         clearTimeout(silenceTimerRef.current);
+        voiceHistoryRef.current = [];
+        // Stop speech recognition
         try { recognitionRef.current?.abort(); } catch (e) { }
+        recognitionRef.current = null;
+        // Stop browser TTS
+        if (synthRef.current) synthRef.current.cancel();
+        // Stop mic visualization and audio context
         stopMicVisualization();
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            audioContextRef.current.close().catch(() => { });
+        }
         onClose();
     };
 

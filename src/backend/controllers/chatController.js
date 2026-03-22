@@ -1,7 +1,6 @@
 const geminiService = require('../services/geminiService');
 const ChatLog = require('../models/ChatLog');
 const User = require('../models/User'); // If needed to verify user
-const voiceService = require('../services/voiceService');
 
 exports.handleChat = async (req, res) => {
     const { message, history } = req.body;
@@ -60,7 +59,7 @@ exports.deleteChatHistory = async (req, res) => {
     }
 };
 
-// Handle Voice Chat (Text Input)
+// Handle Voice Chat (Text Input → Gemini → text response, TTS handled by browser)
 exports.handleVoiceChat = async (req, res) => {
     const userId = req.user.id;
     const { text: transcribedText, history } = req.body;
@@ -82,16 +81,7 @@ exports.handleVoiceChat = async (req, res) => {
         // 2. Process with Gemini (isVoice = true for spoken-friendly responses)
         const response = await geminiService.processCommand(transcribedText, history || [], true);
 
-        // Strip any remaining markdown for clean TTS output
-        const voiceMessage = geminiService.stripMarkdownForVoice(response.message);
-
-        // 3. TTS: Synthesize speech for the clean voice message
-        const audioBase64 = await voiceService.tts(voiceMessage);
-        if (audioBase64) {
-            response.audioBase64 = audioBase64;
-        }
-
-        // 4. Log IA Response
+        // 3. Log IA Response
         await new ChatLog({
             user: userId,
             message: response.message,
@@ -106,3 +96,4 @@ exports.handleVoiceChat = async (req, res) => {
         res.status(500).send('Error en el servidor de chat de voz');
     }
 };
+
