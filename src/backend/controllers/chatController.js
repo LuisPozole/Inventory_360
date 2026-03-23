@@ -3,7 +3,7 @@ const ChatLog = require('../models/ChatLog');
 const User = require('../models/User'); // If needed to verify user
 
 exports.handleChat = async (req, res) => {
-    const { message, history } = req.body;
+    const { message, history, aiTone } = req.body;
     const userId = req.user.id; // From Auth Middleware
 
     try {
@@ -15,7 +15,7 @@ exports.handleChat = async (req, res) => {
         }).save();
 
         // 2. Process with Gemini (pass history for context)
-        const response = await geminiService.processCommand(message, history || []);
+        const response = await geminiService.processCommand(message, history || [], false, aiTone);
 
         // 3. Log IA Response
         await new ChatLog({
@@ -62,7 +62,7 @@ exports.deleteChatHistory = async (req, res) => {
 // Handle Voice Chat (Text Input → Gemini → text response, TTS handled by browser)
 exports.handleVoiceChat = async (req, res) => {
     const userId = req.user.id;
-    const { text: transcribedText, history } = req.body;
+    const { text: transcribedText, history, aiTone } = req.body;
 
     try {
         if (!transcribedText || transcribedText.length === 0) {
@@ -79,7 +79,7 @@ exports.handleVoiceChat = async (req, res) => {
         }).save();
 
         // 2. Process with Gemini (isVoice = true for spoken-friendly responses)
-        const response = await geminiService.processCommand(transcribedText, history || [], true);
+        const response = await geminiService.processCommand(transcribedText, history || [], true, aiTone);
 
         // 3. Log IA Response
         await new ChatLog({

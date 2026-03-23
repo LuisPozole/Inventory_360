@@ -22,6 +22,20 @@ router.post(
 // @access  Public
 router.post('/login', authController.login);
 
+// @route   POST api/auth/create-user
+// @desc    Create a new user (Admin only)
+// @access  Private
+router.post(
+    '/create-user',
+    authMiddleware,
+    [
+        check('name', 'El nombre es obligatorio').not().isEmpty(),
+        check('email', 'Por favor incluye un email válido').isEmail(),
+        check('password', 'Por favor ingresa una contraseña con 6 o más caracteres').isLength({ min: 6 })
+    ],
+    authController.createUserAdmin
+);
+
 // @route   GET api/auth/me
 // @desc    Get current user
 // @access  Private

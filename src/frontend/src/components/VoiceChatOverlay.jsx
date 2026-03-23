@@ -265,9 +265,13 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
 
         try {
             console.log("--> POST /chat/voice executing...");
+            const prefs = JSON.parse(localStorage.getItem('userPrefs') || '{}');
+            const aiTone = prefs.aiTone || 'Profesional';
+
             const res = await api.post('/chat/voice', {
                 text: text,
-                history: voiceHistoryRef.current
+                history: voiceHistoryRef.current,
+                aiTone: aiTone
             });
 
             console.log("--> POST /chat/voice success:", res.data);
@@ -308,9 +312,13 @@ const VoiceChatOverlay = ({ onClose, userData, onMessageComplete }) => {
             updateStatus('processing');
             setResponseText(`Hola ${firstName}, ¿en qué te puedo ayudar?`);
             try {
+                const prefs = JSON.parse(localStorage.getItem('userPrefs') || '{}');
+                const aiTone = prefs.aiTone || 'Profesional';
+
                 const res = await api.post('/chat/voice', {
                     text: `Saluda brevemente al usuario llamándolo "${firstName}". Di algo como "Hola ${firstName}, estoy listo para ayudarte" de forma breve y cálida. Usa pronombres masculinos.`,
-                    history: []
+                    history: [],
+                    aiTone: aiTone
                 });
                 setResponseText(res.data.message);
                 await speakWithBrowserTTS(res.data.message);

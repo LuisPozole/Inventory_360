@@ -109,7 +109,10 @@ const ChatPage = ({ userData }) => {
                 content: m.text
             }));
 
-            const res = await api.post('/chat', { message: userMsg.text, history });
+            const prefs = JSON.parse(localStorage.getItem('userPrefs') || '{}');
+            const aiTone = prefs.aiTone || 'Profesional';
+
+            const res = await api.post('/chat', { message: userMsg.text, history, aiTone });
 
             const iaMsg = {
                 sender: 'ia',

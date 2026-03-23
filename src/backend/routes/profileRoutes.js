@@ -14,6 +14,10 @@ router.get('/', profileController.getProfile);
 // @desc    Update profile fields (name, email, phone)
 router.put('/', profileController.updateProfile);
 
+// @route   PUT /api/profile/password
+// @desc    Update password
+router.put('/password', profileController.updatePassword);
+
 // @route   POST /api/profile/image
 // @desc    Upload profile image
 router.post('/image', profileController.uploadImage, profileController.saveImage);

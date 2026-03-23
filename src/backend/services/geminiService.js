@@ -95,13 +95,17 @@ async function findProductFuzzy(name, populateField) {
     return null;
 }
 
-async function processCommand(commandText, history = [], isVoice = false) {
+async function processCommand(commandText, history = [], isVoice = false, aiTone = 'Profesional') {
     try {
-        const model = genAI.getGenerativeModel({
+        const jsonModel = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
             generationConfig: {
                 responseMimeType: "application/json",
             }
+        });
+        
+        const textModel = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash"
         });
 
         // Build conversation context from history
@@ -163,7 +167,7 @@ ${historyText}
 Mensaje del Usuario: "${commandText}"
 `;
 
-        const result = await model.generateContent(classifyPrompt);
+        const result = await jsonModel.generateContent(classifyPrompt);
         const response = await result.response;
         const text = response.text();
         // Aggressively clean the response to extract valid JSON
@@ -204,15 +208,22 @@ Mensaje del Usuario: "${commandText}"
 - Habla como si fueras un asistente real hablando en persona.`
                 : '';
 
+            const toneInstruction = {
+                'Profesional': 'Responde de manera formal, estructurada y muy profesional.',
+                'Amigable': 'Responde de manera cálida, casual, empática y amigable.',
+                'Directo': 'Responde de manera extremadamente concisa, y directa al punto sin rodeos.'
+            }[aiTone] || 'Responde de manera útil y amigable.';
+
             const chatPrompt = `
-Eres un asistente virtual amigable llamado "INV 360 Assistant" para una empresa.
-Responde la siguiente pregunta o mensaje de manera útil, amigable y concisa. Siempre en Español.${voiceChatExtra}
-Si la pregunta es un saludo, responde de forma cálida y ofrece tu ayuda.
+Eres un asistente virtual llamado "INV 360 Assistant" para la empresa.
+INSTRUCCIONES ESPECIALES DE TONO: ${toneInstruction}
+Responde a continuación siempre en Español.${voiceChatExtra}
+Si la pregunta es un saludo, responde según tu tono configurado.
 Puedes ayudar con preguntas generales, definiciones, cálculos, y cualquier otro tema.
 ${historyText}
 Mensaje: "${commandText}"
 `;
-            const chatResult = await model.generateContent(chatPrompt);
+            const chatResult = await textModel.generateContent(chatPrompt);
             const chatResponse = await chatResult.response;
             return {
                 action: 'GENERAL_CHAT',

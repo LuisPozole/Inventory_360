@@ -7,9 +7,11 @@ import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 import Profile from './components/Profile';
+import Settings from './components/Settings';
 import UserLayout from './components/user/UserLayout';
 import api from './config/api';
 import './App.css';
+import './Theme.css';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -18,6 +20,11 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -97,6 +104,10 @@ function App() {
 
       {currentView === 'profile' && (
         <Profile onBack={() => setCurrentView('dashboard')} />
+      )}
+
+      {currentView === 'settings' && (
+        <Settings onBack={() => setCurrentView('dashboard')} userData={userData} />
       )}
 
       {/* Floating widget hidden when ChatPage is active */}

@@ -93,6 +93,40 @@ exports.login = async (req, res) => {
     }
 };
 
+// Create new user (Admin only)
+exports.createUserAdmin = async (req, res) => {
+    try {
+        // Double check admin role
+        if (req.user.role !== 'Admin') {
+            return res.status(403).json({ msg: 'Acceso denegado. Se requiere rol de Administrador.' });
+        }
+
+        const { name, email, password, role } = req.body;
+
+        let user = await User.findOne({ email });
+        if (user) {
+            return res.status(400).json({ msg: 'El usuario ya existe' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user = new User({
+            name,
+            email,
+            password: hashedPassword,
+            role: role || 'Vendedor'
+        });
+
+        await user.save();
+
+        res.json({ msg: 'Usuario creado exitosamente', user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Error en el servidor');
+    }
+};
+
 // Get current user (optional, for frontend session persistence)
 exports.getMe = async (req, res) => {
     try {

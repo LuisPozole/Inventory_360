@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -99,5 +100,35 @@ exports.saveImage = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Error al subir la imagen' });
+    }
+};
+
+// PUT /api/profile/password — Update password
+exports.updatePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ msg: 'Por favor, proporciona la contraseña actual y la nueva' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ msg: 'La nueva contraseña debe tener al menos 6 caracteres' });
+        }
+        
+        const user = await User.findById(req.user.id);
+        
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ msg: 'La contraseña actual es incorrecta' });
+        }
+        
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        await user.save();
+        
+        res.json({ msg: 'Contraseña actualizada exitosamente' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Error en el servidor' });
     }
 };

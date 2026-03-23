@@ -9,10 +9,19 @@
   --text-dim: #94a3b8;
 }
 
+[data-theme='light'] {
+  --bg-dark: #f8fafc;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --text-light: #0f172a;
+  --text-dim: #475569;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg-dark);
+  transition: background-color 0.4s ease, color 0.4s ease;
   color: var(--text-light);
   min-height: 100vh;
   background-image: 
