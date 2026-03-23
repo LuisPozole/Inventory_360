@@ -5,7 +5,8 @@ import {
     User,
     LogOut,
     ChevronDown,
-    ShoppingCart
+    ShoppingCart,
+    Settings as SettingsIcon
 } from 'lucide-react';
 import UserSidebar from './UserSidebar';
 import UserProfile from './UserProfile';
@@ -13,6 +14,7 @@ import UserDashboard from './UserDashboard';
 import ProductCatalog from './ProductCatalog';
 import ProductDetail from './ProductDetail';
 import CartDrawer from './CartDrawer';
+import Settings from '../Settings';
 import './UserLayout.css';
 
 const UserLayout = ({ userData, onLogout }) => {
@@ -115,6 +117,8 @@ const UserLayout = ({ userData, onLogout }) => {
                 );
             case 'user-profile':
                 return <UserProfile />;
+            case 'user-settings':
+                return <Settings onBack={() => setCurrentView('user-dashboard')} userData={userData} />;
             default:
                 return null;
         }
@@ -215,6 +219,16 @@ const UserLayout = ({ userData, onLogout }) => {
                                 >
                                     <User size={18} />
                                     Mi Perfil
+                                </button>
+                                <button
+                                    className="user-dropdown-item"
+                                    onClick={() => {
+                                        setCurrentView('user-settings');
+                                        setDropdownOpen(false);
+                                    }}
+                                >
+                                    <SettingsIcon size={18} />
+                                    Configuración
                                 </button>
                                 <div className="user-dropdown-divider" />
                                 <button

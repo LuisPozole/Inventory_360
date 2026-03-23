@@ -49,6 +49,35 @@
   --user-transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+[data-theme='light'] {
+  --user-bg-base: #f8fafc;
+  --user-bg-surface: #ffffff;
+  --user-bg-elevated: #ffffff;
+
+  --user-glass-bg: rgba(255, 255, 255, 0.7);
+  --user-glass-bg-hover: rgba(255, 255, 255, 0.9);
+  --user-glass-border: rgba(0, 0, 0, 0.08);
+
+  --user-text-primary: #0f172a;
+  --user-text-secondary: #475569;
+  --user-text-muted: #64748b;
+
+  --user-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --user-shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .user-navbar-logo,
+[data-theme='light'] .user-sidebar-logo {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+[data-theme='light'] .user-navbar-title {
+  background: linear-gradient(135deg, var(--user-primary-dark), var(--user-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 /* ═══════════════════════════════════════════════════════════
    LAYOUT SHELL
    ═══════════════════════════════════════════════════════════ */

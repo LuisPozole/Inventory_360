@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   ShoppingBag,
   User,
+  Settings,
   X,
   LogOut
 } from 'lucide-react';
@@ -12,6 +13,7 @@ const menuItems = [
   { key: 'user-dashboard', label: 'Inicio', icon: LayoutDashboard },
   { key: 'user-catalog', label: 'Catálogo', icon: ShoppingBag },
   { key: 'user-profile', label: 'Mi Perfil', icon: User },
+  { key: 'user-settings', label: 'Configuración', icon: Settings },
 ];
 
 const UserSidebar = ({ isOpen, onClose, currentView, onNavigate, onLogout }) => {
