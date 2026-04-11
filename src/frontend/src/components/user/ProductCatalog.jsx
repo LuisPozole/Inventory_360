@@ -9,105 +9,66 @@ import {
     RefreshCw,
     SearchX,
     ShoppingCart,
-    Eye
+    Eye,
+    Ban
 } from 'lucide-react';
-import api from '../../config/api';
 import './ProductCatalog.css';
 
 const API_BASE = import.meta.env.VITE_API_URL
     ? new URL(import.meta.env.VITE_API_URL).origin
     : 'http://localhost:3000';
 
-const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
-
-    // Filter state
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('');
-    const [selectedStatus, setSelectedStatus] = useState('');
-
-    // Debounce timer ref
+const ProductCatalog = ({
+    products = [],
+    categories = [],
+    loading = false,
+    error = null,
+    onFetchProducts,
+    searchTerm = '',
+    onSearchChange,
+    selectedCategory = '',
+    onCategoryChange,
+    selectedStatus = '',
+    onStatusChange,
+    onAddToCart,
+    onViewDetail,
+    cart = []
+}) => {
+    const [viewMode, setViewMode] = useState('grid');
     const [debounceTimer, setDebounceTimer] = useState(null);
-
-    // ── Load categories on mount ──
-    useEffect(() => {
-        const loadCategories = async () => {
-            try {
-                const res = await api.get('/products/categories');
-                setCategories(res.data);
-            } catch (err) {
-                console.error('Error loading categories:', err);
-            }
-        };
-        loadCategories();
-    }, []);
-
-    // ── Fetch products (called on filter change) ──
-    const fetchProducts = useCallback(async (search, category, status) => {
-        setLoading(true);
-        setError(null);
-        try {
-            const params = {};
-            if (search.trim()) params.search = search.trim();
-            if (category) params.category = category;
-            if (status) params.status = status;
-
-            const res = await api.get('/products', { params });
-            setProducts(res.data);
-        } catch (err) {
-            console.error('Error fetching products:', err);
-            setError('No se pudieron cargar los productos.');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    // ── Initial load ──
-    useEffect(() => {
-        fetchProducts('', '', '');
-    }, [fetchProducts]);
 
     // ── Debounced search ──
     const handleSearchChange = (e) => {
         const value = e.target.value;
-        setSearchTerm(value);
-
+        onSearchChange(value);
         if (debounceTimer) clearTimeout(debounceTimer);
         const timer = setTimeout(() => {
-            fetchProducts(value, selectedCategory, selectedStatus);
+            onFetchProducts(value, selectedCategory, selectedStatus);
         }, 400);
         setDebounceTimer(timer);
     };
 
-    // ── Category filter ──
     const handleCategoryChange = (e) => {
         const value = e.target.value;
-        setSelectedCategory(value);
-        fetchProducts(searchTerm, value, selectedStatus);
+        onCategoryChange(value);
+        onFetchProducts(searchTerm, value, selectedStatus);
     };
 
-    // ── Status filter ──
     const handleStatusChange = (e) => {
         const value = e.target.value;
-        setSelectedStatus(value);
-        fetchProducts(searchTerm, selectedCategory, value);
+        onStatusChange(value);
+        onFetchProducts(searchTerm, selectedCategory, value);
     };
 
-    // ── Clear all filters ──
     const clearFilters = () => {
-        setSearchTerm('');
-        setSelectedCategory('');
-        setSelectedStatus('');
-        fetchProducts('', '', '');
+        onSearchChange('');
+        onCategoryChange('');
+        onStatusChange('');
+        onFetchProducts('', '', '');
     };
 
     const hasActiveFilters = searchTerm || selectedCategory || selectedStatus;
 
-    // ── Format currency ──
     const formatPrice = (value) => {
         return new Intl.NumberFormat('es-MX', {
             style: 'currency',
@@ -118,18 +79,23 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
     };
 
     // ════════════════════════════════════════════════════════
-    // PRODUCT CARD SUB-COMPONENT
+    // PRODUCT CARD
     // ════════════════════════════════════════════════════════
     const ProductCard = ({ product }) => {
         const isCritical = product.status === 'Critico';
+        const isSoldOut = product.stock === 0;
         const categoryName = product.category?.name || 'Sin categoría';
         const imageUrl = product.imageUrl
             ? (product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`)
             : null;
 
+        // Check how many are already in cart
+        const inCart = cart.find((item) => item._id === product._id)?.qty || 0;
+        const canAdd = product.stock - inCart > 0;
+
         return (
             <div
-                className="user-catalog-card"
+                className={`user-catalog-card ${isSoldOut ? 'user-catalog-card--soldout' : ''}`}
                 onClick={() => onViewDetail && onViewDetail(product)}
                 style={{ cursor: onViewDetail ? 'pointer' : 'default' }}
             >
@@ -141,8 +107,10 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
                         <Package size={40} className="user-catalog-card-image-placeholder" />
                     )}
                     {viewMode === 'grid' && (
-                        <span className={`user-catalog-card-status user-catalog-card-status--${product.status}`}>
-                            {isCritical ? 'Crítico' : 'En Stock'}
+                        <span className={`user-catalog-card-status user-catalog-card-status--${
+                            isSoldOut ? 'Agotado' : product.status
+                        }`}>
+                            {isSoldOut ? 'Agotado' : isCritical ? 'Crítico' : 'En Stock'}
                         </span>
                     )}
                 </div>
@@ -157,12 +125,15 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
 
                     <div className="user-catalog-card-footer">
                         <span className="user-catalog-card-price">{formatPrice(product.price)}</span>
-                        <span className={`user-catalog-card-stock ${isCritical
-                            ? 'user-catalog-card-stock--critical'
-                            : 'user-catalog-card-stock--normal'
-                            }`}>
+                        <span className={`user-catalog-card-stock ${
+                            isSoldOut
+                                ? 'user-catalog-card-stock--soldout'
+                                : isCritical
+                                    ? 'user-catalog-card-stock--critical'
+                                    : 'user-catalog-card-stock--normal'
+                        }`}>
                             <Package size={14} />
-                            {product.stock} uds
+                            {isSoldOut ? 'Agotado' : `${product.stock} uds`}
                         </span>
                     </div>
 
@@ -170,14 +141,15 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
                     <div className="user-catalog-card-actions">
                         {onAddToCart && (
                             <button
-                                className="user-catalog-card-add-btn"
+                                className={`user-catalog-card-add-btn ${(!canAdd || isSoldOut) ? 'user-catalog-card-add-btn--disabled' : ''}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onAddToCart(product, 1);
+                                    if (canAdd && !isSoldOut) onAddToCart(product, 1);
                                 }}
-                                title="Agregar a solicitud"
+                                title={isSoldOut ? 'Agotado' : !canAdd ? 'Máximo en carrito' : 'Agregar a solicitud'}
+                                disabled={!canAdd || isSoldOut}
                             >
-                                <ShoppingCart size={14} />
+                                {isSoldOut ? <Ban size={14} /> : <ShoppingCart size={14} />}
                             </button>
                         )}
                         {onViewDetail && (
@@ -196,8 +168,10 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
 
                     {/* Status badge in list mode */}
                     {viewMode === 'list' && (
-                        <span className={`user-catalog-card-status user-catalog-card-status--${product.status}`}>
-                            {isCritical ? 'Crítico' : 'En Stock'}
+                        <span className={`user-catalog-card-status user-catalog-card-status--${
+                            isSoldOut ? 'Agotado' : product.status
+                        }`}>
+                            {isSoldOut ? 'Agotado' : isCritical ? 'Crítico' : 'En Stock'}
                         </span>
                     )}
                 </div>
@@ -211,12 +185,10 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
     if (loading && products.length === 0) {
         return (
             <div className="user-catalog-skeleton">
-                {/* Filter skeleton */}
                 <div className="user-catalog-skeleton-filters">
                     <div className="user-skeleton-pulse user-catalog-skel-line" style={{ flex: 1, height: '42px', borderRadius: '12px' }} />
                     <div className="user-skeleton-pulse user-catalog-skel-line" style={{ width: '160px', height: '42px', borderRadius: '12px' }} />
                 </div>
-                {/* Card skeletons */}
                 <div className="user-catalog-skeleton-grid">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                         <div className="user-catalog-skeleton-card" key={i}>
@@ -248,7 +220,7 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
                 </div>
                 <h3>Error al cargar el catálogo</h3>
                 <p>{error}</p>
-                <button className="user-catalog-retry-btn" onClick={() => fetchProducts(searchTerm, selectedCategory, selectedStatus)}>
+                <button className="user-catalog-retry-btn" onClick={() => onFetchProducts(searchTerm, selectedCategory, selectedStatus)}>
                     <RefreshCw size={16} />
                     Reintentar
                 </button>
@@ -261,7 +233,6 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
     // ════════════════════════════════════════════════════════
     return (
         <div className="user-catalog">
-            {/* Header */}
             <div className="user-catalog-header">
                 <h1>Catálogo de Productos</h1>
                 <span className="user-catalog-count">
@@ -272,7 +243,6 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
             {/* Filters */}
             <div className="user-catalog-filters">
                 <div className="user-catalog-filters-row">
-                    {/* Search */}
                     <div className="user-catalog-search-wrapper">
                         <Search className="user-catalog-search-icon" />
                         <input
@@ -283,8 +253,6 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
                             onChange={handleSearchChange}
                         />
                     </div>
-
-                    {/* Category filter */}
                     <select
                         className="user-catalog-select"
                         value={selectedCategory}
@@ -295,8 +263,6 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
                             <option key={cat._id} value={cat._id}>{cat.name}</option>
                         ))}
                     </select>
-
-                    {/* Status filter */}
                     <select
                         className="user-catalog-select"
                         value={selectedStatus}
@@ -308,17 +274,13 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
                         <option value="stock_critico">Stock Crítico</option>
                     </select>
                 </div>
-
                 <div className="user-catalog-filters-actions">
-                    {/* Clear filters */}
                     {hasActiveFilters && (
                         <button className="user-catalog-clear-btn" onClick={clearFilters}>
                             <X size={14} />
                             Limpiar filtros
                         </button>
                     )}
-
-                    {/* View toggle */}
                     <div className="user-catalog-view-toggle" style={{ marginLeft: 'auto' }}>
                         <button
                             className={`user-catalog-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
@@ -338,7 +300,7 @@ const ProductCatalog = ({ onAddToCart, onViewDetail }) => {
                 </div>
             </div>
 
-            {/* Products or Empty state */}
+            {/* Products or Empty */}
             {products.length > 0 ? (
                 <div className={viewMode === 'grid' ? 'user-catalog-grid' : 'user-catalog-list'}>
                     {products.map((product) => (

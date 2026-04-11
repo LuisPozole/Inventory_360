@@ -383,6 +383,34 @@
     border-color: var(--user-text-muted);
 }
 
+.user-catalog-card-add-btn--disabled,
+.user-catalog-card-add-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ── Soldout card ── */
+.user-catalog-card--soldout {
+    opacity: 0.55;
+    filter: grayscale(30%);
+}
+
+.user-catalog-card--soldout:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.user-catalog-card-status--Agotado {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.user-catalog-card-stock--soldout {
+    color: #94a3b8;
+}
+
 /* ═══════════════════════════════════════════════════════════
    PRODUCT LIST MODE
    ═══════════════════════════════════════════════════════════ */

@@ -38,6 +38,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/chat', require('./routes/chatRoutes'));
 app.use('/api/profile', require('./routes/profileRoutes'));
+app.use('/api/checkout', require('./routes/checkoutRoutes'));
 
 // Default Route
 app.get('/', (req, res) => {

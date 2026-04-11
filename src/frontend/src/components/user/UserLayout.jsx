@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     Menu,
-    Search,
     User,
     LogOut,
     ChevronDown,
     ShoppingCart,
     Settings as SettingsIcon
 } from 'lucide-react';
+import api from '../../config/api';
 import UserSidebar from './UserSidebar';
 import UserProfile from './UserProfile';
 import UserDashboard from './UserDashboard';
@@ -23,14 +23,27 @@ const UserLayout = ({ userData, onLogout }) => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
 
+    // ── Elevated products state (shared across Catalog & Cart) ──
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [productsLoading, setProductsLoading] = useState(true);
+    const [productsError, setProductsError] = useState(null);
+
     // ── Cart state ──
     const [cart, setCart] = useState([]);
     const [cartOpen, setCartOpen] = useState(false);
+    const [checkoutLoading, setCheckoutLoading] = useState(false);
+    const [checkoutMessage, setCheckoutMessage] = useState(null);
 
     // ── Product detail modal state ──
     const [detailProduct, setDetailProduct] = useState(null);
 
-    // Close dropdown when clicking outside
+    // ── Filter state (elevated for ProductCatalog) ──
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState('');
+
+    // Close dropdown on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -41,24 +54,66 @@ const UserLayout = ({ userData, onLogout }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Get user initials for avatar
+    // ── Load categories on mount ──
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const res = await api.get('/products/categories');
+                setCategories(res.data);
+            } catch (err) {
+                console.error('Error loading categories:', err);
+            }
+        };
+        loadCategories();
+    }, []);
+
+    // ── Fetch products ──
+    const fetchProducts = useCallback(async (search, category, status) => {
+        setProductsLoading(true);
+        setProductsError(null);
+        try {
+            const params = {};
+            if (search?.trim()) params.search = search.trim();
+            if (category) params.category = category;
+            if (status) params.status = status;
+            const res = await api.get('/products', { params });
+            setProducts(res.data);
+        } catch (err) {
+            console.error('Error fetching products:', err);
+            setProductsError('No se pudieron cargar los productos.');
+        } finally {
+            setProductsLoading(false);
+        }
+    }, []);
+
+    // Initial load
+    useEffect(() => {
+        fetchProducts('', '', '');
+    }, [fetchProducts]);
+
+    // ══════════════════════════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════════════════════════
     const getInitials = (name) => {
         if (!name) return '?';
-        return name
-            .split(' ')
-            .map((w) => w[0])
-            .slice(0, 2)
-            .join('');
+        return name.split(' ').map((w) => w[0]).slice(0, 2).join('');
     };
 
-    // ── Cart operations ──
+    // ══════════════════════════════════════════════════════════
+    // CART OPERATIONS
+    // ══════════════════════════════════════════════════════════
     const addToCart = (product, qty = 1) => {
         setCart((prev) => {
             const existing = prev.find((item) => item._id === product._id);
+            const currentInCart = existing ? existing.qty : 0;
+            const availableStock = product.stock - currentInCart;
+            const safeQty = Math.min(qty, availableStock);
+            if (safeQty <= 0) return prev;
+
             if (existing) {
                 return prev.map((item) =>
                     item._id === product._id
-                        ? { ...item, qty: item.qty + qty }
+                        ? { ...item, qty: item.qty + safeQty }
                         : item
                 );
             }
@@ -69,7 +124,7 @@ const UserLayout = ({ userData, onLogout }) => {
                 price: product.price,
                 stock: product.stock,
                 imageUrl: product.imageUrl,
-                qty
+                qty: safeQty
             }];
         });
     };
@@ -79,9 +134,13 @@ const UserLayout = ({ userData, onLogout }) => {
             removeFromCart(productId);
             return;
         }
+        const product = products.find((p) => p._id === productId);
+        const maxQty = product ? product.stock : newQty;
         setCart((prev) =>
             prev.map((item) =>
-                item._id === productId ? { ...item, qty: newQty } : item
+                item._id === productId
+                    ? { ...item, qty: Math.min(newQty, maxQty) }
+                    : item
             )
         );
     };
@@ -90,20 +149,76 @@ const UserLayout = ({ userData, onLogout }) => {
         setCart((prev) => prev.filter((item) => item._id !== productId));
     };
 
-    const submitCart = () => {
-        console.log('═══ SOLICITUD DE SALIDA ═══');
-        console.log('Fecha:', new Date().toLocaleString('es-MX'));
-        console.log('Vendedor:', userData?.name || 'Desconocido');
-        console.log('Artículos:', cart.length);
-        console.log('Detalle:', JSON.parse(JSON.stringify(cart)));
-        console.log('Total:', cart.reduce((sum, item) => sum + item.price * item.qty, 0));
-        console.log('═══════════════════════════');
-        setCart([]);
+    // ══════════════════════════════════════════════════════════
+    // CHECKOUT — Real API + Optimistic UI
+    // ══════════════════════════════════════════════════════════
+    const handleCheckout = async () => {
+        if (cart.length === 0) return;
+
+        setCheckoutLoading(true);
+        setCheckoutMessage(null);
+
+        // Snapshot for rollback
+        const previousProducts = [...products];
+
+        // ── Optimistic UI: reduce stock locally ──
+        setProducts((prev) =>
+            prev.map((product) => {
+                const cartItem = cart.find((item) => item._id === product._id);
+                if (!cartItem) return product;
+                const newStock = Math.max(0, product.stock - cartItem.qty);
+                return {
+                    ...product,
+                    stock: newStock,
+                    status: newStock <= (product.criticalThreshold || 10) ? 'Critico' : 'Normal'
+                };
+            })
+        );
+
+        try {
+            const payload = {
+                items: cart.map((item) => ({
+                    productId: item._id,
+                    qty: item.qty
+                }))
+            };
+
+            const res = await api.post('/checkout', payload);
+
+            // Sync with server response
+            if (res.data.updatedProducts) {
+                setProducts((prev) =>
+                    prev.map((product) => {
+                        const updated = res.data.updatedProducts.find((u) => u._id === product._id);
+                        return updated || product;
+                    })
+                );
+            }
+
+            setCart([]);
+            setCheckoutMessage({
+                type: 'success',
+                text: res.data.msg || 'Solicitud procesada correctamente.'
+            });
+            setTimeout(() => setCheckoutMessage(null), 4000);
+
+        } catch (err) {
+            console.error('Error en checkout:', err);
+            // Rollback
+            setProducts(previousProducts);
+            const errorMsg = err.response?.data?.msg || 'Error al procesar la solicitud.';
+            setCheckoutMessage({ type: 'error', text: errorMsg });
+            setTimeout(() => setCheckoutMessage(null), 5000);
+        } finally {
+            setCheckoutLoading(false);
+        }
     };
 
     const totalCartItems = cart.reduce((sum, item) => sum + item.qty, 0);
 
-    // Render the active view content
+    // ══════════════════════════════════════════════════════════
+    // VIEW RENDERING
+    // ══════════════════════════════════════════════════════════
     const renderView = () => {
         switch (currentView) {
             case 'user-dashboard':
@@ -111,8 +226,20 @@ const UserLayout = ({ userData, onLogout }) => {
             case 'user-catalog':
                 return (
                     <ProductCatalog
+                        products={products}
+                        categories={categories}
+                        loading={productsLoading}
+                        error={productsError}
+                        onFetchProducts={fetchProducts}
+                        searchTerm={searchTerm}
+                        onSearchChange={setSearchTerm}
+                        selectedCategory={selectedCategory}
+                        onCategoryChange={setSelectedCategory}
+                        selectedStatus={selectedStatus}
+                        onStatusChange={setSelectedStatus}
                         onAddToCart={addToCart}
                         onViewDetail={(product) => setDetailProduct(product)}
+                        cart={cart}
                     />
                 );
             case 'user-profile':
@@ -139,7 +266,6 @@ const UserLayout = ({ userData, onLogout }) => {
             <div className="user-main">
                 {/* ── Top Navbar ── */}
                 <header className="user-navbar">
-                    {/* Hamburger (mobile/tablet) */}
                     <button
                         className="user-navbar-menu-btn"
                         onClick={() => setSidebarOpen(true)}
@@ -148,23 +274,9 @@ const UserLayout = ({ userData, onLogout }) => {
                         <Menu size={20} />
                     </button>
 
-                    {/* Brand */}
                     <div className="user-navbar-brand">
                         <img src="/logo.png" alt="INV 360" className="user-navbar-logo" />
                         <span className="user-navbar-title">INV 360</span>
-                    </div>
-
-                    {/* Search placeholder */}
-                    <div className="user-navbar-search">
-                        <div className="user-search-wrapper">
-                            <Search className="user-search-icon" />
-                            <input
-                                type="text"
-                                className="user-search-input"
-                                placeholder="Buscar productos..."
-                                readOnly
-                            />
-                        </div>
                     </div>
 
                     {/* Actions: Cart + Avatar */}
@@ -208,7 +320,6 @@ const UserLayout = ({ userData, onLogout }) => {
                                 <ChevronDown size={14} />
                             </button>
 
-                            {/* Dropdown content */}
                             <div className={`user-dropdown-menu ${dropdownOpen ? 'open' : ''}`}>
                                 <button
                                     className="user-dropdown-item"
@@ -255,6 +366,7 @@ const UserLayout = ({ userData, onLogout }) => {
                     product={detailProduct}
                     onClose={() => setDetailProduct(null)}
                     onAddToCart={addToCart}
+                    cart={cart}
                 />
             )}
 
@@ -265,8 +377,17 @@ const UserLayout = ({ userData, onLogout }) => {
                 cart={cart}
                 onUpdateQty={updateCartQty}
                 onRemoveItem={removeFromCart}
-                onSubmit={submitCart}
+                onSubmit={handleCheckout}
+                isSubmitting={checkoutLoading}
+                checkoutMessage={checkoutMessage}
             />
+
+            {/* ═══ Global checkout toast ═══ */}
+            {checkoutMessage && !cartOpen && (
+                <div className={`user-checkout-toast user-checkout-toast--${checkoutMessage.type}`}>
+                    {checkoutMessage.text}
+                </div>
+            )}
         </div>
     );
 };

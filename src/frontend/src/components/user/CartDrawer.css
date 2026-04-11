@@ -402,3 +402,63 @@
         transform: scale(1);
     }
 }
+
+/* ── Spinner ── */
+.user-cart-spinner {
+    animation: userCartSpin 1s linear infinite;
+}
+
+@keyframes userCartSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* ── Checkout message ── */
+.user-cart-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--user-radius-md);
+    font-size: 0.8rem;
+    font-weight: 600;
+    animation: userCartFadeIn 0.2s ease-out;
+}
+
+.user-cart-message--success {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: var(--user-accent-light);
+}
+
+.user-cart-message--error {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    color: #fca5a5;
+}
+
+/* ── Disabled controls ── */
+.user-cart-qty-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.user-cart-remove:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ── Success state in empty cart ── */
+.user-cart-success-big {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: var(--user-accent-light);
+    animation: userCartFadeIn 0.3s ease-out;
+}
+
+.user-cart-success-big p {
+    color: var(--user-accent-light);
+    font-weight: 600;
+}
