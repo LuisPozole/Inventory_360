@@ -10,7 +10,6 @@
 [![Gemini AI](https://img.shields.io/badge/Gemini_AI-2.5_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
 [![Express](https://img.shields.io/badge/Express-5.x-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![License](https://img.shields.io/badge/Licencia-ISC-blue?style=for-the-badge)](LICENSE)
 
 **Inventory 360** es una plataforma SaaS full-stack diseñada para transformar la administración de inventarios mediante la integración de **Inteligencia Artificial (Google Gemini)**. Ofrece automatización de operaciones a través de lenguaje natural (texto y voz), análisis predictivo avanzado y una arquitectura robusta orientada a la escalabilidad empresarial.
 
@@ -180,7 +179,5 @@ Inventory 360 no utiliza la IA como un simple generador de texto, sino como un *
 
 **Desarrollado y mantenido por Luis Enrique De Santiago Colin**
 *Ingeniería en Desarrollo de Software Multiplataforma*
-
-[![Licencia](https://img.shields.io/badge/Licencia-ISC-blue?style=flat-square)](LICENSE)
 
 </div>
