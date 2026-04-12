@@ -65,10 +65,6 @@ const Login = ({ onLoginSuccess }) => {
                         {loading ? 'Ingresando...' : 'Iniciar sesión'}
                     </button>
                 </form>
-
-                <p className="login-tip">
-                    💡 Usa <strong>admin@inventory360.com</strong> / <strong>123456</strong>
-                </p>
             </div>
         </div>
     );
