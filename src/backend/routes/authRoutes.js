@@ -41,4 +41,27 @@ router.post(
 // @access  Private
 router.get('/me', authMiddleware, authController.getMe);
 
+// @route   POST api/auth/forgot-password
+// @desc    Forgot Password - Send reset email
+// @access  Public
+router.post(
+    '/forgot-password',
+    [
+        check('email', 'Por favor incluye un email válido').isEmail()
+    ],
+    authController.forgotPassword
+);
+
+// @route   POST api/auth/reset-password
+// @desc    Reset Password
+// @access  Public
+router.post(
+    '/reset-password',
+    [
+        check('password', 'Por favor ingresa una contraseña con 6 o más caracteres').isLength({ min: 6 }),
+        check('token', 'El token es obligatorio').not().isEmpty()
+    ],
+    authController.resetPassword
+);
+
 module.exports = router;

@@ -6,6 +6,8 @@ import ChatPage from './components/ChatPage';
 import ChatWidget from './components/ChatWidget';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import Profile from './components/Profile';
 import Settings from './components/Settings';
 import UserLayout from './components/user/UserLayout';
@@ -20,10 +22,20 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authView, setAuthView] = useState('login'); // 'login', 'forgot-password', 'reset-password'
+  const [resetToken, setResetToken] = useState(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // Check for reset token in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    if (tokenFromUrl) {
+      setResetToken(tokenFromUrl);
+      setAuthView('reset-password');
+    }
   }, []);
 
   useEffect(() => {
@@ -42,7 +54,15 @@ function App() {
   }, [token]);
 
   if (!token) {
-    return <Login onLoginSuccess={setToken} />;
+    if (authView === 'forgot-password') {
+      return <ForgotPassword onBack={() => setAuthView('login')} />;
+    }
+    
+    if (authView === 'reset-password') {
+      return <ResetPassword token={resetToken} onBack={() => setAuthView('login')} />;
+    }
+
+    return <Login onLoginSuccess={setToken} onForgotPassword={() => setAuthView('forgot-password')} />;
   }
 
   if (isLoading) {

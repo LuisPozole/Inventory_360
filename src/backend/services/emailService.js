@@ -109,6 +109,79 @@ const sendStockAlertEmail = async (product, adminEmails) => {
     }
 };
 
+/**
+ * Sends a password reset email to a user
+ * @param {String} email - User email
+ * @param {String} token - Reset token
+ * @param {String} userName - User name
+ */
+const sendPasswordResetEmail = async (email, token, userName) => {
+    try {
+        await initTransporter();
+
+        if (!transporter) {
+            console.error('❌ El servicio de correo no está inicializado.');
+            return;
+        }
+
+        // Generate the reset link (using the CORS_ORIGIN or frontend URL)
+        const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173';
+        const resetLink = `${frontendUrl}?token=${token}`;
+
+        const mailOptions = {
+            from: '"Inventory 360 Security" <no-reply@inventory360.com>',
+            to: email,
+            subject: 'Recuperación de Contraseña - Inventory 360',
+            html: `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #ffffff;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #2c3e50; margin: 0;">Inventory 360</h1>
+                        <p style="color: #7f8c8d; font-size: 16px;">Sistema de Gestión de Inventarios</p>
+                    </div>
+                    
+                    <div style="color: #333; line-height: 1.6;">
+                        <p>Hola <strong>${userName}</strong>,</p>
+                        <p>Has solicitado restablecer tu contraseña para tu cuenta en <strong>Inventory 360</strong>.</p>
+                        <p>Para completar el proceso, haz clic en el siguiente botón. Este enlace es válido por <strong>1 hora</strong>.</p>
+                        
+                        <div style="text-align: center; margin: 35px 0;">
+                            <a href="${resetLink}" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                Restablecer Contraseña
+                            </a>
+                        </div>
+                        
+                        <p style="font-size: 14px; color: #666;">Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
+                        <p style="font-size: 12px; color: #3b82f6; word-break: break-all;">${resetLink}</p>
+                        
+                        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
+                        
+                        <p style="font-size: 13px; color: #999;">Si no has solicitado este cambio, por favor ignora este correo. Tu contraseña seguirá siendo la misma.</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px; color: #bdc3c7; font-size: 12px;">
+                        <p>&copy; 2026 Inventory 360. Todos los derechos reservados.</p>
+                    </div>
+                </div>
+            `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ Correo de recuperación enviado exitosamente a ${email}.`);
+
+        const testUrl = nodemailer.getTestMessageUrl(info);
+        if (testUrl) {
+            console.log('========================================================');
+            console.log('📧 PREVISUALIZA EL CORREO DE RECUPERACIÓN AQUÍ:');
+            console.log(`👉 ${testUrl}`);
+            console.log('========================================================');
+        }
+
+    } catch (error) {
+        console.error('❌ Error al enviar el correo de recuperación:', error);
+    }
+};
+
 module.exports = {
-    sendStockAlertEmail
+    sendStockAlertEmail,
+    sendPasswordResetEmail
 };

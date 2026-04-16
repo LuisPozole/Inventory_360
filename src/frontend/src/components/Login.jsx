@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import api from '../config/api';
 
-const Login = ({ onLoginSuccess }) => {
+const Login = ({ onLoginSuccess, onForgotPassword }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -64,6 +64,17 @@ const Login = ({ onLoginSuccess }) => {
                     <button type="submit" className="login-button" disabled={loading}>
                         {loading ? 'Ingresando...' : 'Iniciar sesión'}
                     </button>
+
+                    <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                        <button 
+                            type="button" 
+                            className="login-link-btn" 
+                            onClick={onForgotPassword}
+                            style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontSize: '14px' }}
+                        >
+                            ¿Olvidaste tu contraseña?
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
